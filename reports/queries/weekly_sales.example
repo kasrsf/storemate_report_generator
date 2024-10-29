@@ -1,0 +1,13 @@
+name: weekly_customer_sales
+description: "Breakdown of sales by customers and items in the past week"
+query: |
+  SELECT 
+    customer_name,
+    item_name,
+    SUM(quantity) as total_quantity,
+    SUM(amount) as total_amount
+  FROM sales
+  WHERE date >= DATEADD('week', -1, CURRENT_DATE)
+  GROUP BY customer_name, item_name
+  ORDER BY total_amount DESC
+output_file: weekly_customer_sales.csv
