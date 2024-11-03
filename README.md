@@ -31,7 +31,7 @@ make setup
 * `data/raw`: Place your DBF files here
 * `data/processed/`: Converted CSV files and DuckDB database
 * `data/reports/`: Generated report files
-* `reports/queries/`: YAML files containing report queries
+* `data/queries/`: YAML files containing report queries
 
 ### Commands
 1. Process DBF files to CSV:
