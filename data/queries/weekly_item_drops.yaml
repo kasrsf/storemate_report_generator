@@ -1,0 +1,56 @@
+name: weekly_item_drops
+description: "Breakdown of dropoffs by items in the past week"
+query: |
+  WITH raw_data AS (
+      SELECT 
+          INV_NUM,
+          ACCT_NUM,
+          CUST_NAME,
+          TEL_NUM,
+          DATE_IN,
+          SUB_TOT,
+          AMNT_DUE,
+          INV_ITEM,
+          TOT_ITEM,
+          regexp_split_to_array(INV_ITEM, '<Z>') AS items
+      FROM
+          claim
+      WHERE
+          TRY_CAST(DATE_IN AS TIMESTAMP) >= CURRENT_TIMESTAMP - INTERVAL 7 DAY
+  ),
+  split_items AS (
+      SELECT
+          INV_NUM,
+          ACCT_NUM,
+          CUST_NAME,
+          TOT_ITEM,
+          items,
+          UNNEST(items) AS item
+      FROM
+          raw_data
+  ),
+  decoded_items AS (
+      SELECT
+          INV_NUM,
+          ACCT_NUM,
+          CUST_NAME,
+          item,
+          regexp_extract(item, '([0-9]+)<A>', 1) AS item_qty,
+          regexp_extract(item, '<A>([^<]+)', 1) AS item_type,
+          regexp_extract(item, '<B>([^<]+)', 1) AS item_category,
+          regexp_extract(item, '<C>([^<]+)', 1) AS item_unit_price,
+          regexp_extract(item, '<E>([^<]+)', 1) AS item_total_price
+      FROM split_items
+  )
+  SELECT
+      item_category,
+      item_type,
+      SUM(TRY_CAST(item_qty AS FLOAT)) AS total_qty,
+      SUM(TRY_CAST(item_total_price AS FLOAT)) AS total_price
+  FROM
+      decoded_items
+  GROUP BY
+      1, 2
+  ORDER BY
+      4 DESC;
+output_file: weekly_item_drops.csv

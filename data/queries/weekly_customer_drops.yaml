@@ -1,0 +1,56 @@
+name: weekly_customer_drops
+description: "Breakdown of sales by customers and their visit history"
+query: |
+    WITH date_cutoff AS (
+        SELECT 
+            MAX(TRY_CAST(DATE_IN AS TIMESTAMP)) - INTERVAL 7 DAY AS date_cutoff
+        FROM claim
+    ), all_customer_details AS (
+        SELECT
+            ACCT_NUM,
+            CUST_NAME,
+            TEL_NUM,
+            COUNT(*) AS number_of_visits,
+            MIN(DATE_IN) AS first_visit,
+            MAX(DATE_IN) AS last_visit,
+            SUM(AMNT_DUE) AS total_spend,
+            SUM(TOT_ITEM) AS total_items
+        FROM
+            claim
+        GROUP BY
+            1, 2, 3
+    ),
+    recent_cust_claims AS (
+        SELECT 
+            ACCT_NUM,
+            CUST_NAME,
+            TEL_NUM,
+            LIST(INV_NUM) AS recent_invoices,
+            SUM(AMNT_DUE) AS dropped_value,
+            SUM(TOT_ITEM) AS dropped_items,
+        FROM
+            claim,
+            date_cutoff
+        WHERE
+            TRY_CAST(DATE_IN AS TIMESTAMP) >= date_cutoff
+        GROUP BY
+            1, 2, 3
+    )
+    SELECT
+        rc.ACCT_NUM,
+        rc.CUST_NAME,
+        rc.TEL_NUM,
+        rc.recent_invoices AS order_numbers,
+        rc.dropped_value AS dropped_value,
+        rc.dropped_items AS dropped_items,
+        ac.number_of_visits,
+        ac.first_visit,
+        ac.last_visit,
+        ac.total_items AS total_items_from_all_visits,
+        ac.total_spend AS total_spend_from_all_visits,
+    FROM
+        recent_cust_claims AS rc
+    INNER JOIN
+        all_customer_details AS ac ON rc.ACCT_NUM = ac.ACCT_NUM
+    ORDER BY total_spend DESC;
+output_file: weekly_customer_drops.csv

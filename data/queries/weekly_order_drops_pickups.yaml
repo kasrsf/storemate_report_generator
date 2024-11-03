@@ -1,0 +1,63 @@
+name: weekly_order_drops_pickups
+description: "Breakdown of sales by orders dropped and picked in the past week"
+query: |
+    WITH date_cutoff AS (
+        SELECT 
+            MAX(TRY_CAST(DATE_IN AS TIMESTAMP)) - INTERVAL 7 DAY AS date_cutoff
+        FROM claim
+    ), raw_claim_data AS (
+        SELECT 
+            INV_NUM,
+            ACCT_NUM,
+            CUST_NAME,
+            TEL_NUM,
+            DATE_IN,
+            SUB_TOT,
+            AMNT_DUE,
+            INV_ITEM,
+            TOT_ITEM,
+            regexp_split_to_array(INV_ITEM, '<Z>') AS items
+        FROM
+            claim,
+            date_cutoff
+        WHERE
+            TRY_CAST(DATE_IN AS TIMESTAMP) >= date_cutoff
+    ), raw_invoice_data AS (
+        SELECT
+            INV_NUM,
+            ACCT_NUM,
+            CUST_NAME,
+            TEL_NUM,
+            DATE_IN,
+            DATE_PICK,
+            SUB_TOT,
+            CASH,
+            DEBIT,
+            VISA,
+            MCARD,
+            AMEX,
+            TOT_ITEM
+        FROM
+            invoice,
+            date_cutoff
+        WHERE
+            TRY_CAST(DATE_PICK AS TIMESTAMP) >= date_cutoff
+    )
+    SELECT 
+        'Dropped' AS type,
+        COUNT(*) AS number_of_orders,
+        SUM(TOT_ITEM) AS total_items,
+        SUM(SUB_TOT) AS total_amount
+    FROM
+        raw_claim_data
+        
+    UNION ALL
+
+    SELECT
+        'Picked' AS type,
+        COUNT(*) AS number_of_orders,
+        SUM(TOT_ITEM) AS total_items,
+        SUM(SUB_TOT) AS total_amount
+    FROM
+        raw_invoice_data;
+output_file: weekly_order_drops_pickups.csv
