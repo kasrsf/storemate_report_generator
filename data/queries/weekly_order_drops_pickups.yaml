@@ -44,20 +44,20 @@ query: |
             TRY_CAST(DATE_PICK AS TIMESTAMP) >= date_cutoff
     )
     SELECT 
-        'Dropped' AS type,
-        COUNT(*) AS number_of_orders,
-        SUM(TOT_ITEM) AS total_items,
-        SUM(SUB_TOT) AS total_amount
+        'Dropped' AS "Type",
+        COUNT(*) AS "Number of Orders",
+        SUM(TOT_ITEM) AS "Total Number of Items",
+        SUM(SUB_TOT) AS "Total Sales"
     FROM
         raw_claim_data
         
     UNION ALL
 
     SELECT
-        'Picked' AS type,
-        COUNT(*) AS number_of_orders,
-        SUM(TOT_ITEM) AS total_items,
-        SUM(SUB_TOT) AS total_amount
+        'Picked' AS "Type",
+        COUNT(*) AS "Number of Orders",
+        SUM(TOT_ITEM) AS "Total Number of Items",
+        SUM(SUB_TOT) AS "Total Sales"
     FROM
         raw_invoice_data;
 output_file: weekly_order_drops_pickups.csv

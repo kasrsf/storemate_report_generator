@@ -68,7 +68,7 @@ def sample_query_file(temp_dir):
         query: |
             SELECT * FROM test_table
             WHERE amount > 100
-        output_file: test_report.csv
+        output_file: test_report.xlsx
     """
     query_file = temp_dir / "reports/queries/test_report.yaml"
     query_file.write_text(query_content)

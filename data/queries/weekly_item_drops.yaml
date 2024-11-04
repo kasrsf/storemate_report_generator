@@ -43,10 +43,10 @@ query: |
       FROM split_items
   )
   SELECT
-      item_category,
-      item_type,
-      SUM(TRY_CAST(item_qty AS FLOAT)) AS total_qty,
-      SUM(TRY_CAST(item_total_price AS FLOAT)) AS total_price
+      item_category AS "Item Category",
+      item_type AS "Item Type",
+      SUM(TRY_CAST(item_qty AS FLOAT)) AS "Total Quantity",
+      SUM(TRY_CAST(item_total_price AS FLOAT)) AS "Total Price"
   FROM
       decoded_items
   GROUP BY

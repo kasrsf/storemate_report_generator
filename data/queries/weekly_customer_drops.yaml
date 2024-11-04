@@ -37,17 +37,17 @@ query: |
             1, 2, 3
     )
     SELECT
-        rc.ACCT_NUM,
-        rc.CUST_NAME,
-        rc.TEL_NUM,
-        rc.recent_invoices AS order_numbers,
-        rc.dropped_value AS dropped_value,
-        rc.dropped_items AS dropped_items,
-        ac.number_of_visits,
-        ac.first_visit,
-        ac.last_visit,
-        ac.total_items AS total_items_from_all_visits,
-        ac.total_spend AS total_spend_from_all_visits,
+        rc.ACCT_NUM AS "Account Number",
+        rc.CUST_NAME AS "Customer Name",
+        rc.TEL_NUM AS "Telephone Number",
+        rc.recent_invoices AS "Recent Invoices",
+        rc.dropped_value AS "Dropped Value",
+        rc.dropped_items AS "Dropped Items",
+        ac.number_of_visits AS "Total Visits",
+        ac.first_visit AS "First Visit",
+        ac.last_visit AS "Last Visit",
+        ac.total_items AS "Total Items from All Visits",
+        ac.total_spend AS "Total Spend from All Visits"
     FROM
         recent_cust_claims AS rc
     INNER JOIN
