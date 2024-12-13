@@ -19,7 +19,7 @@ def process_dbf_file(file_path: Path, output_path: Path) -> None:
         logger.info(f"Processed {file_path} to {output_path}")
     except Exception as e:
         logger.error(f"Error processing {file_path}: {str(e)}")
-        raise
+        # raise
 
 
 def process_all_dbf_files(config: Config) -> None:
