@@ -1,0 +1,21 @@
+name: report_orders_daily
+description: "daily order stats"
+query: |
+    WITH date_cutoff AS (
+        SELECT 
+            MAX(TRY_CAST(DATE_IN AS TIMESTAMP)) - INTERVAL 30 DAY AS date_cutoff
+        FROM claim
+    )
+    SELECT
+        strftime(DATE_IN::date, '%Y-%m-%d') AS date,
+        COUNT(*) AS num_orders,
+        AVG(AMNT_DUE) AS average_amount,
+        SUM(AMNT_DUE) AS total_amount
+    FROM
+        claim,
+        date_cutoff
+    WHERE
+        TRY_CAST(DATE_IN AS TIMESTAMP) >= date_cutoff
+    GROUP BY 1
+    ORDER BY 1
+output_file: report_orders_daily.csv

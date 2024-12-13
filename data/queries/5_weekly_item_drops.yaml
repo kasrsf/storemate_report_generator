@@ -1,7 +1,12 @@
 name: weekly_item_drops
 description: "Breakdown of dropoffs by items in the past week"
 query: |
-  WITH raw_data AS (
+  WITH date_cutoff AS (
+        SELECT 
+            MAX(TRY_CAST(DATE_IN AS TIMESTAMP)) - INTERVAL 7 DAY AS date_cutoff
+        FROM claim
+    ), 
+    raw_data AS (
       SELECT 
           INV_NUM,
           ACCT_NUM,
@@ -14,9 +19,10 @@ query: |
           TOT_ITEM,
           regexp_split_to_array(INV_ITEM, '<Z>') AS items
       FROM
-          claim
+          claim,
+          date_cutoff
       WHERE
-          TRY_CAST(DATE_IN AS TIMESTAMP) >= CURRENT_TIMESTAMP - INTERVAL 7 DAY
+          TRY_CAST(DATE_PICK AS TIMESTAMP) >= date_cutoff
   ),
   split_items AS (
       SELECT

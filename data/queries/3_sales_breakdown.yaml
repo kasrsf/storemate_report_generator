@@ -1,0 +1,21 @@
+name: sales_breakdown_daily
+description: "daily sales stats"
+query: |
+    WITH date_cutoff AS (
+        SELECT 
+            MAX(TRY_CAST(DATE_PICK AS TIMESTAMP)) - INTERVAL 30 DAY AS date_cutoff
+        FROM invoice
+    )
+    SELECT
+        strftime(DATE_PICK::date, '%Y-%m-%d') AS date,
+        COALESCE(SUM(CASH), 0) AS cash,
+        COALESCE(SUM(DEBIT), 0) AS debit,
+        COALESCE(SUM(VISA), 0) + COALESCE(SUM(MCARD), 0) + COALESCE(SUM(AMEX), 0) AS credit
+    FROM
+        invoice,
+        date_cutoff
+    WHERE
+        TRY_CAST(DATE_PICK AS TIMESTAMP) >= date_cutoff
+    GROUP BY 1
+    ORDER BY 1
+output_file: sales_breakdown_daily.csv
