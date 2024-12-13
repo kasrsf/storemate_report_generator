@@ -72,7 +72,7 @@ class ReportGenerator:
     def generate_all_reports(self) -> None:
         """Generate all reports from query files."""
         try:
-            for query_file in self.config.QUERIES_DIR.glob("*.yaml"):
+            for query_file in sorted(self.config.QUERIES_DIR.glob("*.yaml")):
                 self.generate_report(query_file)
         finally:
             self.close()
