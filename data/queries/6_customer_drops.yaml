@@ -1,10 +1,10 @@
-name: weekly_customer_drops
+name: customer_drops
 description: "Breakdown of sales by customers and their visit history"
 query: |
-    WITH date_cutoff AS (
+    WITH date_range AS (
         SELECT 
-            MAX(TRY_CAST(DATE_IN AS TIMESTAMP)) - INTERVAL 7 DAY AS date_cutoff
-        FROM claim
+            DATE '$FIRST_DAY' AS start_date,
+            DATE '$LAST_DAY' AS end_date
     ), all_customer_details AS (
         SELECT
             ACCT_NUM,
@@ -30,9 +30,9 @@ query: |
             SUM(TOT_ITEM) AS dropped_items,
         FROM
             claim,
-            date_cutoff
+            date_range
         WHERE
-            TRY_CAST(DATE_IN AS TIMESTAMP) >= date_cutoff
+            TRY_CAST(DATE_IN AS TIMESTAMP) BETWEEN start_date AND end_date
         GROUP BY
             1, 2, 3
     )

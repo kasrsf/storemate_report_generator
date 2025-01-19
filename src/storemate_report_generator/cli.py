@@ -28,14 +28,16 @@ def process_data():
 
 
 @cli.command()
-def generate_reports():
+@click.option("--month", type=int, help="Month (1-12)", default=None)
+@click.option("--year", type=int, help="Year (YYYY)", default=None)
+def generate_reports(month, year):
     """Generate reports from processed data."""
     config = Config()
     db = Database(config)
     try:
         db.load_csv_files()
         generator = ReportGenerator(config, db)
-        generator.generate_all_reports()
+        generator.generate_all_reports(month=month, year=year)
     finally:
         db.close()
 

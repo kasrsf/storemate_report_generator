@@ -1,4 +1,5 @@
 import logging
+from calendar import monthrange
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -43,7 +44,34 @@ class ReportGenerator:
             )
             worksheet.column_dimensions[column_letter].width = adjusted_width
 
-    def generate_report(self, query_file: Path) -> None:
+    def _prepare_query(self, query: str, month: int = None, year: int = None) -> str:
+        """Replace variables in the query with actual values."""
+
+        # Use current date if month or year not provided
+        current_date = datetime.now()
+        month = month or current_date.month
+        year = year or current_date.year
+
+        # Create a dictionary of variables to replace
+        variables = {
+            "YEAR": str(year),
+            "MONTH": str(month).zfill(2),  # Pad with zero if needed
+            "FIRST_DAY": f"{year}-{str(month).zfill(2)}-01",
+            "LAST_DAY": f"{year}-{str(month).zfill(2)}-{str(self._get_last_day_of_month(year, month)).zfill(2)}",
+        }
+
+        # Replace each variable in the query
+        prepared_query = query
+        for var_name, var_value in variables.items():
+            prepared_query = prepared_query.replace(f"${var_name}", var_value)
+
+        return prepared_query
+
+    def _get_last_day_of_month(self, year: int, month: int) -> int:
+        """Get the last day of the given month."""
+        return monthrange(year, month)[1]
+
+    def generate_report(self, query_file: Path, month: int = None, year: int = None) -> None:
         """Generate a single report as a sheet in Excel file."""
         try:
             # Initialize Excel writer if not exists
@@ -51,13 +79,17 @@ class ReportGenerator:
                 self._init_excel_writer()
 
             query_config = self.load_query(query_file)
-            query = query_config["query"]
+            # Replace variables in the query
+            query = self._prepare_query(query_config["query"], month, year)
             sheet_name = Path(query_config["output_file"]).stem[
                 :31
             ]  # Use filename without extension as sheet name and truncate to 31 characters
 
             # Execute query and save results to Excel sheet
-            results = self.db.execute_query(query)
+            try:
+                results = self.db.execute_query(query)
+            except Exception:
+                breakpoint()
             results.to_excel(self.excel_writer, sheet_name=sheet_name, index=False)
 
             # Adjust column widths
@@ -66,14 +98,15 @@ class ReportGenerator:
 
             logger.info(f"Added sheet {sheet_name} to {self.excel_file}")
         except Exception as e:
-            logger.error(f"Error generating report from {query_file}: {str(e)}")
+            logger.error(f"Error generating report from {
+                         query_file}: {str(e)}")
             raise
 
-    def generate_all_reports(self) -> None:
+    def generate_all_reports(self, month: int = None, year: int = None) -> None:
         """Generate all reports from query files."""
         try:
             for query_file in sorted(self.config.QUERIES_DIR.glob("*.yaml")):
-                self.generate_report(query_file)
+                self.generate_report(query_file, month, year)
         finally:
             self.close()
 

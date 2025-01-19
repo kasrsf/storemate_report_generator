@@ -1,7 +1,0 @@
-name: 1.max_date
-description: "latest timestamp"
-query: |
-    SELECT 
-        MAX(TRY_CAST(DATE_IN AS TIMESTAMP)) AS date_cutoff
-    FROM claim
-output_file: latest timestamp.csv

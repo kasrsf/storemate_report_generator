@@ -1,5 +1,8 @@
 .PHONY: setup test clean process-data generate-reports backup-data install lint
 
+MONTH ?= $(shell date +%m) # Default to current month
+YEAR ?= $(shell date +%Y) # Default to current year
+
 DATA_DIR = data
 BACKUP_DIR = backups
 
@@ -20,7 +23,7 @@ process-data:
 	uv run python -m storemate_report_generator.cli process-data
 
 generate-reports:
-	uv run python -m storemate_report_generator.cli generate-reports
+	uv run python -m storemate_report_generator.cli generate-reports --month $(MONTH) --year $(YEAR)
 
 backup-data:
 	uv run python -m storemate_report_generator.cli backup-data
