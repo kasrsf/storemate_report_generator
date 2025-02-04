@@ -15,7 +15,7 @@ query: |
         claim,
         date_range
     WHERE
-        TRY_CAST(DATE_IN AS TIMESTAMP) BETWEEN start_date AND end_date
+        TRY_CAST(DATE_IN AS DATE) BETWEEN start_date AND end_date
     GROUP BY 1
     ORDER BY 1
 output_file: report_orders_daily.csv
