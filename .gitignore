@@ -72,3 +72,11 @@ cloud_function/storemate_report_generator/  # Copied source code during deployme
 .DS_Store
 Thumbs.db
 *.log
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfvars
+!*.tfvars.example
+terraform.tfplan
+.terraform.lock.hcl

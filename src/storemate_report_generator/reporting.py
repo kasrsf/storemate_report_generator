@@ -98,8 +98,7 @@ class ReportGenerator:
 
             logger.info(f"Added sheet {sheet_name} to {self.excel_file}")
         except Exception as e:
-            logger.error(f"Error generating report from {
-                         query_file}: {str(e)}")
+            logger.error(f"Error generating report from {query_file}: {str(e)}")
             raise
 
     def generate_all_reports(self, month: int = None, year: int = None) -> None:
