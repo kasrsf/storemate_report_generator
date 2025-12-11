@@ -61,6 +61,13 @@ backups/
 *.db
 *.duckdb
 
+# GCP specific
+*.json  # Service account keys
+.gcp/
+cloud_function/storemate_report_generator/  # Copied source code during deployment
+.env.local
+.env.production
+
 # OS specific
 .DS_Store
 Thumbs.db
