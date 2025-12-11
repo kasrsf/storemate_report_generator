@@ -1,0 +1,14 @@
+# Cloud Functions framework
+functions-framework==3.*
+
+# Google Cloud libraries
+google-cloud-bigquery==3.11.0
+google-cloud-storage==2.10.0
+
+# Data processing - use compatible versions to avoid binary incompatibility
+numpy==1.24.3
+pandas==2.0.3
+db-dtypes==1.1.1
+dbfread==2.0.7
+
+# Note: storemate_report_generator package is included directly in the deployment package
