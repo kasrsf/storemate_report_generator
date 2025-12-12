@@ -61,6 +61,9 @@ backups/
 *.db
 *.duckdb
 
+# Generated documentation
+DIMENSIONAL_MODEL_SUMMARY.md
+
 # GCP specific
 *.json  # Service account keys
 .gcp/
