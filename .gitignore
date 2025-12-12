@@ -63,6 +63,7 @@ backups/
 
 # Generated documentation
 DIMENSIONAL_MODEL_SUMMARY.md
+MIGRATION_SUMMARY.md
 
 # GCP specific
 *.json  # Service account keys
