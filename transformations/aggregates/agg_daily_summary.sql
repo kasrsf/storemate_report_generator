@@ -2,7 +2,7 @@
 -- Pre-aggregated daily metrics for fast dashboard performance
 -- Grain: One row per date
 
-CREATE OR REPLACE TABLE `{project_id}.{dataset_name}.agg_daily_summary` AS
+CREATE OR REPLACE TABLE `{project_id}.{analytics_dataset}.agg_daily_summary` AS
 
 SELECT
   -- Date key
@@ -72,17 +72,17 @@ SELECT
   CURRENT_TIMESTAMP() as created_at,
   CURRENT_TIMESTAMP() as updated_at
 
-FROM `{project_id}.{dataset_name}.dim_dates` d
-LEFT JOIN `{project_id}.{dataset_name}.fact_orders` fo
+FROM `{project_id}.{analytics_dataset}.dim_dates` d
+LEFT JOIN `{project_id}.{analytics_dataset}.fact_orders` fo
   ON d.date_key = fo.date_in_key
-LEFT JOIN `{project_id}.{dataset_name}.dim_customers` c
+LEFT JOIN `{project_id}.{analytics_dataset}.dim_customers` c
   ON fo.customer_key = c.customer_key
 
 -- Only include dates with activity or recent dates
 WHERE d.date >= (
   SELECT MIN(dd.date)
-  FROM `{project_id}.{dataset_name}.fact_orders` fo2
-  JOIN `{project_id}.{dataset_name}.dim_dates` dd ON fo2.date_in_key = dd.date_key
+  FROM `{project_id}.{analytics_dataset}.fact_orders` fo2
+  JOIN `{project_id}.{analytics_dataset}.dim_dates` dd ON fo2.date_in_key = dd.date_key
 )
   AND d.date <= CURRENT_DATE()
 
@@ -96,7 +96,7 @@ ORDER BY d.date DESC;
 -- Can be enabled later with monthly or yearly partitioning if needed
 
 -- Create rolling metrics view (7-day, 30-day, 90-day averages)
-CREATE OR REPLACE VIEW `{project_id}.{dataset_name}.v_daily_summary_with_trends` AS
+CREATE OR REPLACE VIEW `{project_id}.{analytics_dataset}.v_daily_summary_with_trends` AS
 SELECT
   *,
   -- 7-day rolling averages
@@ -128,6 +128,6 @@ SELECT
   ROUND((num_orders - LAG(num_orders) OVER (ORDER BY date)) /
     NULLIF(CAST(LAG(num_orders) OVER (ORDER BY date) AS FLOAT64), 0) * 100, 2) as orders_growth_pct
 
-FROM `{project_id}.{dataset_name}.agg_daily_summary`
+FROM `{project_id}.{analytics_dataset}.agg_daily_summary`
 WHERE num_orders > 0  -- Only include days with activity
 ORDER BY date DESC;

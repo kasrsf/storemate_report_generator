@@ -3,7 +3,7 @@
 -- Format: {qty}<A>{type}<B>{category}<C>{unit_price}<E>{total_price}
 -- Multiple items separated by <Z>
 
-CREATE OR REPLACE TABLE `{project_id}.{dataset_name}.dim_items` AS
+CREATE OR REPLACE TABLE `{project_id}.{analytics_dataset}.dim_items` AS
 
 WITH parsed_items AS (
   SELECT
@@ -16,7 +16,7 @@ WITH parsed_items AS (
     COUNT(*) as order_frequency,
     SUM(SAFE_CAST(REGEXP_EXTRACT(item, r'([0-9]+)<A>') AS INT64)) as total_quantity_sold
 
-  FROM `{project_id}.{dataset_name}.claim`,
+  FROM `{project_id}.{raw_dataset}.claim`,
   UNNEST(SPLIT(INV_ITEM, '<Z>')) AS item
   WHERE item IS NOT NULL
     AND item != ''
@@ -114,18 +114,18 @@ FROM item_metrics
 ORDER BY item_category, item_type, unit_price;
 
 -- Create views for common item groups
-CREATE OR REPLACE VIEW `{project_id}.{dataset_name}.v_popular_items` AS
-SELECT * FROM `{project_id}.{dataset_name}.dim_items`
+CREATE OR REPLACE VIEW `{project_id}.{analytics_dataset}.v_popular_items` AS
+SELECT * FROM `{project_id}.{analytics_dataset}.dim_items`
 WHERE is_popular_item = TRUE
 ORDER BY overall_popularity_rank;
 
-CREATE OR REPLACE VIEW `{project_id}.{dataset_name}.v_items_by_category` AS
+CREATE OR REPLACE VIEW `{project_id}.{analytics_dataset}.v_items_by_category` AS
 SELECT
   item_category,
   item_group,
   COUNT(*) as item_count,
   AVG(standard_unit_price) as avg_price,
   SUM(total_quantity_sold) as total_sold
-FROM `{project_id}.{dataset_name}.dim_items`
+FROM `{project_id}.{analytics_dataset}.dim_items`
 GROUP BY item_category, item_group
 ORDER BY total_sold DESC;

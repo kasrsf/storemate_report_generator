@@ -2,7 +2,7 @@
 -- Pre-aggregated monthly metrics for trend analysis
 -- Grain: One row per month
 
-CREATE OR REPLACE TABLE `{project_id}.{dataset_name}.agg_monthly_summary` AS
+CREATE OR REPLACE TABLE `{project_id}.{analytics_dataset}.agg_monthly_summary` AS
 
 SELECT
   -- Date grouping
@@ -48,10 +48,10 @@ SELECT
   CURRENT_TIMESTAMP() as created_at,
   CURRENT_TIMESTAMP() as updated_at
 
-FROM `{project_id}.{dataset_name}.dim_dates` d
-LEFT JOIN `{project_id}.{dataset_name}.fact_orders` fo
+FROM `{project_id}.{analytics_dataset}.dim_dates` d
+LEFT JOIN `{project_id}.{analytics_dataset}.fact_orders` fo
   ON d.date_key = fo.date_in_key
-LEFT JOIN `{project_id}.{dataset_name}.dim_customers` c
+LEFT JOIN `{project_id}.{analytics_dataset}.dim_customers` c
   ON fo.customer_key = c.customer_key
 LEFT JOIN (
   -- Calculate daily order counts for averaging
@@ -59,8 +59,8 @@ LEFT JOIN (
     dd.year_month,
     dd.date,
     COUNT(DISTINCT ffo.order_key) as daily_orders
-  FROM `{project_id}.{dataset_name}.dim_dates` dd
-  LEFT JOIN `{project_id}.{dataset_name}.fact_orders` ffo
+  FROM `{project_id}.{analytics_dataset}.dim_dates` dd
+  LEFT JOIN `{project_id}.{analytics_dataset}.fact_orders` ffo
     ON dd.date_key = ffo.date_in_key
   GROUP BY dd.year_month, dd.date
 ) daily
@@ -71,7 +71,7 @@ GROUP BY d.year, d.month, d.month_name, d.year_month
 ORDER BY d.year DESC, d.month DESC;
 
 -- Create view with month-over-month growth
-CREATE OR REPLACE VIEW `{project_id}.{dataset_name}.v_monthly_summary_with_growth` AS
+CREATE OR REPLACE VIEW `{project_id}.{analytics_dataset}.v_monthly_summary_with_growth` AS
 SELECT
   *,
   -- Month-over-month growth
@@ -91,5 +91,5 @@ SELECT
   ROUND((num_orders - LAG(num_orders, 12) OVER (ORDER BY year, month)) /
     NULLIF(CAST(LAG(num_orders, 12) OVER (ORDER BY year, month) AS FLOAT64), 0) * 100, 2) as orders_yoy_growth
 
-FROM `{project_id}.{dataset_name}.agg_monthly_summary`
+FROM `{project_id}.{analytics_dataset}.agg_monthly_summary`
 ORDER BY year DESC, month DESC;

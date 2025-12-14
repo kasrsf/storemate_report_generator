@@ -2,7 +2,7 @@
 -- Creates a date dimension table with calendar attributes
 -- This enables easy time-based filtering and grouping
 
-CREATE OR REPLACE TABLE `{project_id}.{dataset_name}.dim_dates` AS
+CREATE OR REPLACE TABLE `{project_id}.{analytics_dataset}.dim_dates` AS
 
 WITH date_range AS (
   -- Get min and max dates from all date fields
@@ -10,7 +10,7 @@ WITH date_range AS (
   SELECT
     MIN(CAST(DATE_IN AS DATE)) as min_date,
     MAX(COALESCE(CAST(DATE_PICK AS DATE), CAST(DATE_IN AS DATE))) as max_date
-  FROM `{project_id}.{dataset_name}.claim`
+  FROM `{project_id}.{raw_dataset}.claim`
 ),
 
 all_dates AS (
@@ -77,6 +77,6 @@ FROM all_dates
 ORDER BY date;
 
 -- Create indexes for better query performance
-CREATE OR REPLACE VIEW `{project_id}.{dataset_name}.v_dim_dates_recent` AS
-SELECT * FROM `{project_id}.{dataset_name}.dim_dates`
+CREATE OR REPLACE VIEW `{project_id}.{analytics_dataset}.v_dim_dates_recent` AS
+SELECT * FROM `{project_id}.{analytics_dataset}.dim_dates`
 WHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL 2 YEAR);

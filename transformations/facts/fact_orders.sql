@@ -2,7 +2,7 @@
 -- Order-level transaction fact table
 -- Grain: One row per order (invoice/claim)
 
-CREATE OR REPLACE TABLE `{project_id}.{dataset_name}.fact_orders` AS
+CREATE OR REPLACE TABLE `{project_id}.{analytics_dataset}.fact_orders` AS
 
 WITH claim_data AS (
   SELECT
@@ -13,22 +13,22 @@ WITH claim_data AS (
     dd_in.date_key as date_in_key,
     dd_pick.date_key as date_pick_key
 
-  FROM `{project_id}.{dataset_name}.claim` c
+  FROM `{project_id}.{raw_dataset}.claim` c
 
   -- Join to customer dimension
-  LEFT JOIN `{project_id}.{dataset_name}.dim_customers` cust
+  LEFT JOIN `{project_id}.{analytics_dataset}.dim_customers` cust
     ON c.ACCT_NUM = cust.account_number
 
   -- Join to employee dimension
-  LEFT JOIN `{project_id}.{dataset_name}.dim_employees` emp
+  LEFT JOIN `{project_id}.{analytics_dataset}.dim_employees` emp
     ON c.EMP_ID = emp.employee_id
 
   -- Join to date dimension for drop-off date
-  LEFT JOIN `{project_id}.{dataset_name}.dim_dates` dd_in
+  LEFT JOIN `{project_id}.{analytics_dataset}.dim_dates` dd_in
     ON FORMAT_DATE('%Y%m%d', CAST(c.DATE_IN AS DATE)) = dd_in.date_key
 
   -- Join to date dimension for pickup date
-  LEFT JOIN `{project_id}.{dataset_name}.dim_dates` dd_pick
+  LEFT JOIN `{project_id}.{analytics_dataset}.dim_dates` dd_pick
     ON FORMAT_DATE('%Y%m%d', CAST(c.DATE_PICK AS DATE)) = dd_pick.date_key
 )
 
@@ -134,28 +134,28 @@ ORDER BY invoice_number;
 -- Can be enabled later with monthly or yearly partitioning if needed
 
 -- Create indexes and views for common queries
-CREATE OR REPLACE VIEW `{project_id}.{dataset_name}.v_recent_orders` AS
+CREATE OR REPLACE VIEW `{project_id}.{analytics_dataset}.v_recent_orders` AS
 SELECT
   fo.*,
   c.customer_name,
   c.customer_segment,
   d.date as order_date,
   d.year_month
-FROM `{project_id}.{dataset_name}.fact_orders` fo
-LEFT JOIN `{project_id}.{dataset_name}.dim_customers` c ON fo.customer_key = c.customer_key
-LEFT JOIN `{project_id}.{dataset_name}.dim_dates` d ON fo.date_in_key = d.date_key
+FROM `{project_id}.{analytics_dataset}.fact_orders` fo
+LEFT JOIN `{project_id}.{analytics_dataset}.dim_customers` c ON fo.customer_key = c.customer_key
+LEFT JOIN `{project_id}.{analytics_dataset}.dim_dates` d ON fo.date_in_key = d.date_key
 WHERE d.date >= DATE_SUB(CURRENT_DATE(), INTERVAL 90 DAY)
 ORDER BY d.date DESC;
 
-CREATE OR REPLACE VIEW `{project_id}.{dataset_name}.v_unpicked_orders` AS
+CREATE OR REPLACE VIEW `{project_id}.{analytics_dataset}.v_unpicked_orders` AS
 SELECT
   fo.*,
   c.customer_name,
   c.phone_number,
   d.date as drop_off_date,
   DATE_DIFF(CURRENT_DATE(), d.date, DAY) as days_waiting
-FROM `{project_id}.{dataset_name}.fact_orders` fo
-LEFT JOIN `{project_id}.{dataset_name}.dim_customers` c ON fo.customer_key = c.customer_key
-LEFT JOIN `{project_id}.{dataset_name}.dim_dates` d ON fo.date_in_key = d.date_key
+FROM `{project_id}.{analytics_dataset}.fact_orders` fo
+LEFT JOIN `{project_id}.{analytics_dataset}.dim_customers` c ON fo.customer_key = c.customer_key
+LEFT JOIN `{project_id}.{analytics_dataset}.dim_dates` d ON fo.date_in_key = d.date_key
 WHERE fo.is_picked_up = FALSE
 ORDER BY d.date;

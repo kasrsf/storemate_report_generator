@@ -2,7 +2,7 @@
 -- Item-level transaction fact table
 -- Grain: One row per item per order
 
-CREATE OR REPLACE TABLE `{project_id}.{dataset_name}.fact_order_items` AS
+CREATE OR REPLACE TABLE `{project_id}.{analytics_dataset}.fact_order_items` AS
 
 WITH exploded_items AS (
   SELECT
@@ -21,7 +21,7 @@ WITH exploded_items AS (
     SAFE_CAST(REGEXP_EXTRACT(item, r'<C>([^<]+)') AS FLOAT64) as unit_price,
     SAFE_CAST(REGEXP_EXTRACT(item, r'<E>([^<]+)') AS FLOAT64) as total_price
 
-  FROM `{project_id}.{dataset_name}.claim` c,
+  FROM `{project_id}.{raw_dataset}.claim` c,
   UNNEST(SPLIT(c.INV_ITEM, '<Z>')) AS item WITH OFFSET item_index
 
   WHERE item IS NOT NULL
@@ -44,28 +44,28 @@ enriched_items AS (
   FROM exploded_items ei
 
   -- Join to fact_orders
-  LEFT JOIN `{project_id}.{dataset_name}.fact_orders` fo
+  LEFT JOIN `{project_id}.{analytics_dataset}.fact_orders` fo
     ON ei.INV_NUM = fo.invoice_number
 
   -- Join to item dimension
-  LEFT JOIN `{project_id}.{dataset_name}.dim_items` i
+  LEFT JOIN `{project_id}.{analytics_dataset}.dim_items` i
     ON ei.item_type = i.item_type
     AND ei.item_category = i.item_category
     AND ABS(ei.unit_price - i.standard_unit_price) < 0.01  -- Handle floating point comparison
 
   -- Join to customer dimension
-  LEFT JOIN `{project_id}.{dataset_name}.dim_customers` cust
+  LEFT JOIN `{project_id}.{analytics_dataset}.dim_customers` cust
     ON ei.ACCT_NUM = cust.account_number
 
   -- Join to employee dimension
-  LEFT JOIN `{project_id}.{dataset_name}.dim_employees` emp
+  LEFT JOIN `{project_id}.{analytics_dataset}.dim_employees` emp
     ON ei.EMP_ID = emp.employee_id
 
   -- Join to date dimensions
-  LEFT JOIN `{project_id}.{dataset_name}.dim_dates` dd_in
+  LEFT JOIN `{project_id}.{analytics_dataset}.dim_dates` dd_in
     ON FORMAT_DATE('%Y%m%d', CAST(ei.DATE_IN AS DATE)) = dd_in.date_key
 
-  LEFT JOIN `{project_id}.{dataset_name}.dim_dates` dd_pick
+  LEFT JOIN `{project_id}.{analytics_dataset}.dim_dates` dd_pick
     ON FORMAT_DATE('%Y%m%d', CAST(ei.DATE_PICK AS DATE)) = dd_pick.date_key
 )
 
@@ -129,7 +129,7 @@ ORDER BY invoice_number, item_index;
 -- Can be enabled later with monthly or yearly partitioning if needed
 
 -- Create views for common analyses
-CREATE OR REPLACE VIEW `{project_id}.{dataset_name}.v_item_sales_summary` AS
+CREATE OR REPLACE VIEW `{project_id}.{analytics_dataset}.v_item_sales_summary` AS
 SELECT
   i.item_category,
   i.item_type,
@@ -140,12 +140,12 @@ SELECT
   ROUND(SUM(foi.total_price), 2) as total_revenue,
   ROUND(AVG(foi.unit_price), 2) as avg_unit_price,
   ROUND(AVG(foi.quantity), 2) as avg_quantity_per_order
-FROM `{project_id}.{dataset_name}.fact_order_items` foi
-JOIN `{project_id}.{dataset_name}.dim_items` i ON foi.item_key = i.item_key
+FROM `{project_id}.{analytics_dataset}.fact_order_items` foi
+JOIN `{project_id}.{analytics_dataset}.dim_items` i ON foi.item_key = i.item_key
 GROUP BY i.item_category, i.item_type, i.item_group, i.service_type
 ORDER BY total_revenue DESC;
 
-CREATE OR REPLACE VIEW `{project_id}.{dataset_name}.v_recent_item_sales` AS
+CREATE OR REPLACE VIEW `{project_id}.{analytics_dataset}.v_recent_item_sales` AS
 SELECT
   foi.*,
   i.item_category,
@@ -153,9 +153,9 @@ SELECT
   i.item_group,
   c.customer_name,
   d.date as sale_date
-FROM `{project_id}.{dataset_name}.fact_order_items` foi
-JOIN `{project_id}.{dataset_name}.dim_items` i ON foi.item_key = i.item_key
-JOIN `{project_id}.{dataset_name}.dim_customers` c ON foi.customer_key = c.customer_key
-JOIN `{project_id}.{dataset_name}.dim_dates` d ON foi.date_in_key = d.date_key
+FROM `{project_id}.{analytics_dataset}.fact_order_items` foi
+JOIN `{project_id}.{analytics_dataset}.dim_items` i ON foi.item_key = i.item_key
+JOIN `{project_id}.{analytics_dataset}.dim_customers` c ON foi.customer_key = c.customer_key
+JOIN `{project_id}.{analytics_dataset}.dim_dates` d ON foi.date_in_key = d.date_key
 WHERE d.date >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)
 ORDER BY d.date DESC;

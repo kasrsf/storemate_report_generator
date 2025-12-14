@@ -2,7 +2,7 @@
 -- Creates a customer dimension with lifetime metrics and segmentation
 -- Includes SCD Type 2 attributes for tracking changes over time
 
-CREATE OR REPLACE TABLE `{project_id}.{dataset_name}.dim_customers` AS
+CREATE OR REPLACE TABLE `{project_id}.{analytics_dataset}.dim_customers` AS
 
 WITH customer_lifetime_metrics AS (
   SELECT
@@ -31,7 +31,7 @@ WITH customer_lifetime_metrics AS (
       DAY
     ) as customer_lifetime_days
 
-  FROM `{project_id}.{dataset_name}.claim`
+  FROM `{project_id}.{raw_dataset}.claim`
   WHERE ACCT_NUM IS NOT NULL
     AND DATE_IN IS NOT NULL
   GROUP BY ACCT_NUM
@@ -136,14 +136,14 @@ WHERE ACCT_NUM IS NOT NULL
 ORDER BY lifetime_revenue DESC;
 
 -- Create views for common segments
-CREATE OR REPLACE VIEW `{project_id}.{dataset_name}.v_active_customers` AS
-SELECT * FROM `{project_id}.{dataset_name}.dim_customers`
+CREATE OR REPLACE VIEW `{project_id}.{analytics_dataset}.v_active_customers` AS
+SELECT * FROM `{project_id}.{analytics_dataset}.dim_customers`
 WHERE is_active = TRUE;
 
-CREATE OR REPLACE VIEW `{project_id}.{dataset_name}.v_vip_customers` AS
-SELECT * FROM `{project_id}.{dataset_name}.dim_customers`
+CREATE OR REPLACE VIEW `{project_id}.{analytics_dataset}.v_vip_customers` AS
+SELECT * FROM `{project_id}.{analytics_dataset}.dim_customers`
 WHERE customer_segment IN ('Champion', 'VIP');
 
-CREATE OR REPLACE VIEW `{project_id}.{dataset_name}.v_at_risk_customers` AS
-SELECT * FROM `{project_id}.{dataset_name}.dim_customers`
+CREATE OR REPLACE VIEW `{project_id}.{analytics_dataset}.v_at_risk_customers` AS
+SELECT * FROM `{project_id}.{analytics_dataset}.dim_customers`
 WHERE customer_segment = 'Need Attention';

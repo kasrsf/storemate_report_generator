@@ -2,7 +2,7 @@
 -- Creates an employee dimension with performance metrics
 -- Tracks employee activity and productivity
 
-CREATE OR REPLACE TABLE `{project_id}.{dataset_name}.dim_employees` AS
+CREATE OR REPLACE TABLE `{project_id}.{analytics_dataset}.dim_employees` AS
 
 WITH employee_metrics AS (
   SELECT
@@ -25,7 +25,7 @@ WITH employee_metrics AS (
       DAY
     ) + 1 as days_active
 
-  FROM `{project_id}.{dataset_name}.claim`
+  FROM `{project_id}.{raw_dataset}.claim`
   WHERE EMP_ID IS NOT NULL
     AND DATE_IN IS NOT NULL
   GROUP BY EMP_ID
@@ -100,12 +100,12 @@ FROM employee_stats
 ORDER BY total_revenue_generated DESC;
 
 -- Create views for employee segments
-CREATE OR REPLACE VIEW `{project_id}.{dataset_name}.v_active_employees` AS
-SELECT * FROM `{project_id}.{dataset_name}.dim_employees`
+CREATE OR REPLACE VIEW `{project_id}.{analytics_dataset}.v_active_employees` AS
+SELECT * FROM `{project_id}.{analytics_dataset}.dim_employees`
 WHERE is_active = TRUE
 ORDER BY total_revenue_generated DESC;
 
-CREATE OR REPLACE VIEW `{project_id}.{dataset_name}.v_top_performers` AS
-SELECT * FROM `{project_id}.{dataset_name}.dim_employees`
+CREATE OR REPLACE VIEW `{project_id}.{analytics_dataset}.v_top_performers` AS
+SELECT * FROM `{project_id}.{analytics_dataset}.dim_employees`
 WHERE performance_tier IN ('Top Performer', 'High Performer')
 ORDER BY revenue_rank;
