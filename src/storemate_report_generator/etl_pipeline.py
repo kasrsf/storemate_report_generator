@@ -85,26 +85,30 @@ class ETLPipeline:
 
             # Step 2: Upload CSVs to BigQuery (raw staging tables)
             if self.bq_client:
-                logger.info("Step 2: Loading CSV files to BigQuery (staging)")
+                logger.info("Step 2: Loading CSV files to BigQuery (raw dataset)")
 
-                # Ensure dataset exists
+                # Ensure raw dataset exists
                 self.bq_client.create_dataset()
 
-                # Load all CSV files
+                # Load all CSV files to raw dataset
                 jobs = self.bq_client.load_all_csvs_from_directory(
                     self.config.PROCESSED_DATA_DIR
                 )
                 results["tables_loaded"] = len(jobs)
                 results["bq_jobs"] = jobs
 
-                logger.info(f"Successfully loaded {len(jobs)} raw tables to BigQuery")
+                logger.info(f"Successfully loaded {len(jobs)} raw tables to {self.config.GCP_RAW_DATASET}")
             else:
                 logger.warning("BigQuery client not available, skipping upload")
 
             # Step 3: Run dimensional model transformations
             if run_transformations and self.bq_client:
-                logger.info("Step 3: Building dimensional model")
+                logger.info("Step 3: Building dimensional model (analytics dataset)")
                 transformer = DataTransformations(self.config)
+
+                # Ensure analytics dataset exists before transformations
+                transformer.bq_client.create_dataset()
+
                 transform_results = transformer.run_all_transformations()
 
                 results["transformations_run"] = True

@@ -222,11 +222,17 @@ def init_gcp():
 
         click.echo(f"Initializing GCP resources for project: {config.GCP_PROJECT_ID}")
 
-        # Initialize BigQuery dataset
-        click.echo("\n1. Setting up BigQuery dataset...")
-        bq_client = BigQueryClient(config)
-        dataset = bq_client.create_dataset()
-        click.echo(f"   ✓ Dataset ready: {dataset.dataset_id}")
+        # Initialize BigQuery datasets
+        click.echo("\n1. Setting up BigQuery datasets...")
+        # Create raw dataset
+        bq_raw_client = BigQueryClient(config, dataset_type="raw")
+        raw_dataset = bq_raw_client.create_dataset()
+        click.echo(f"   ✓ Raw dataset ready: {raw_dataset.dataset_id}")
+
+        # Create analytics dataset
+        bq_analytics_client = BigQueryClient(config, dataset_type="analytics")
+        analytics_dataset = bq_analytics_client.create_dataset()
+        click.echo(f"   ✓ Analytics dataset ready: {analytics_dataset.dataset_id}")
 
         # Initialize GCS bucket (if configured)
         if config.GCP_STORAGE_BUCKET:
@@ -260,7 +266,8 @@ def test_gcp():
     # Check environment variables
     click.echo("1. Environment Variables:")
     click.echo(f"   GCP_PROJECT_ID: {config.GCP_PROJECT_ID or '❌ Not set'}")
-    click.echo(f"   GCP_DATASET_NAME: {config.GCP_DATASET_NAME}")
+    click.echo(f"   GCP_RAW_DATASET: {config.GCP_RAW_DATASET}")
+    click.echo(f"   GCP_ANALYTICS_DATASET: {config.GCP_ANALYTICS_DATASET}")
     click.echo(f"   GCP_LOCATION: {config.GCP_LOCATION}")
     click.echo(f"   GCP_STORAGE_BUCKET: {config.GCP_STORAGE_BUCKET or '(not set)'}")
     click.echo(
@@ -276,16 +283,28 @@ def test_gcp():
     try:
         from .bigquery_client import BigQueryClient
 
-        bq_client = BigQueryClient(config)
+        # Test raw dataset
+        bq_raw_client = BigQueryClient(config, dataset_type="raw")
         click.echo(f"   ✓ Connected to project: {config.GCP_PROJECT_ID}")
+        click.echo(f"   ✓ Raw dataset: {config.GCP_RAW_DATASET}")
 
-        # Check if dataset exists
-        if bq_client.table_exists(config.BQ_CLAIM_TABLE):
-            info = bq_client.get_table_info(config.BQ_CLAIM_TABLE)
-            click.echo(f"   ✓ Sample table exists: {config.BQ_CLAIM_TABLE}")
-            click.echo(f"     Rows: {info['num_rows']:,}")
+        # Check if raw tables exist
+        if bq_raw_client.table_exists(config.BQ_CLAIM_TABLE):
+            info = bq_raw_client.get_table_info(config.BQ_CLAIM_TABLE)
+            click.echo(f"     ✓ Sample raw table: {config.BQ_CLAIM_TABLE} ({info['num_rows']:,} rows)")
         else:
-            click.echo(f"   ℹ Dataset exists but no tables yet")
+            click.echo(f"     ℹ No raw tables yet")
+
+        # Test analytics dataset
+        bq_analytics_client = BigQueryClient(config, dataset_type="analytics")
+        click.echo(f"   ✓ Analytics dataset: {config.GCP_ANALYTICS_DATASET}")
+
+        # Check if dimensional tables exist
+        if bq_analytics_client.table_exists("fact_orders"):
+            info = bq_analytics_client.get_table_info("fact_orders")
+            click.echo(f"     ✓ Sample analytics table: fact_orders ({info['num_rows']:,} rows)")
+        else:
+            click.echo(f"     ℹ No analytics tables yet")
 
     except Exception as e:
         click.echo(f"   ❌ BigQuery error: {str(e)}")

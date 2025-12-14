@@ -16,11 +16,12 @@ logger = logging.getLogger(__name__)
 class BigQueryClient:
     """Client for managing BigQuery operations."""
 
-    def __init__(self, config: Optional[Config] = None):
+    def __init__(self, config: Optional[Config] = None, dataset_type: str = "raw"):
         """Initialize BigQuery client.
 
         Args:
             config: Application configuration. If None, uses default Config.
+            dataset_type: Which dataset to use ('raw' or 'analytics'). Default: 'raw'
         """
         self.config = config or Config()
 
@@ -35,8 +36,20 @@ class BigQueryClient:
             location=self.config.GCP_LOCATION,
         )
 
-        self.dataset_id = f"{self.config.GCP_PROJECT_ID}.{self.config.GCP_DATASET_NAME}"
-        logger.info(f"Initialized BigQuery client for project: {self.config.GCP_PROJECT_ID}")
+        # Set the dataset based on type
+        self.dataset_type = dataset_type
+        if dataset_type == "raw":
+            self.dataset_name = self.config.GCP_RAW_DATASET
+        elif dataset_type == "analytics":
+            self.dataset_name = self.config.GCP_ANALYTICS_DATASET
+        else:
+            raise ValueError(f"Invalid dataset_type: {dataset_type}. Use 'raw' or 'analytics'")
+
+        self.dataset_id = f"{self.config.GCP_PROJECT_ID}.{self.dataset_name}"
+        logger.info(
+            f"Initialized BigQuery client for project: {self.config.GCP_PROJECT_ID}, "
+            f"dataset: {self.dataset_name} ({dataset_type})"
+        )
 
     def create_dataset(self) -> bigquery.Dataset:
         """Create BigQuery dataset if it doesn't exist.
@@ -51,7 +64,13 @@ class BigQueryClient:
         except NotFound:
             dataset = bigquery.Dataset(self.dataset_id)
             dataset.location = self.config.GCP_LOCATION
-            dataset.description = "StoreMate POS data warehouse"
+
+            # Set description based on dataset type
+            if self.dataset_type == "raw":
+                dataset.description = "StoreMate POS raw data - direct DBF file ingestion (staging layer)"
+            else:
+                dataset.description = "StoreMate POS analytics - dimensional model for reporting (consumption layer)"
+
             dataset = self.client.create_dataset(dataset, timeout=30)
             logger.info(f"Created dataset {self.dataset_id}")
             return dataset

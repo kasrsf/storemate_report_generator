@@ -24,7 +24,10 @@ class DataTransformations:
             config: Application configuration. If None, uses default Config.
         """
         self.config = config or Config()
-        self.bq_client = BigQueryClient(self.config)
+        # Use analytics dataset for dimensional model output
+        self.bq_client = BigQueryClient(self.config, dataset_type="analytics")
+        # Also create client for reading raw data
+        self.raw_bq_client = BigQueryClient(self.config, dataset_type="raw")
         self.transformations_dir = Path(__file__).parent.parent.parent / "transformations"
 
     def _run_sql_file(self, sql_file: Path) -> None:
@@ -40,7 +43,10 @@ class DataTransformations:
 
         # Replace placeholders with actual values
         sql = sql.replace("{project_id}", self.config.GCP_PROJECT_ID)
-        sql = sql.replace("{dataset_name}", self.config.GCP_DATASET_NAME)
+        sql = sql.replace("{raw_dataset}", self.config.GCP_RAW_DATASET)
+        sql = sql.replace("{analytics_dataset}", self.config.GCP_ANALYTICS_DATASET)
+        # Backward compatibility for old placeholder
+        sql = sql.replace("{dataset_name}", self.config.GCP_ANALYTICS_DATASET)
 
         # Execute the SQL
         # BigQuery DDL statements don't return results, just execute
@@ -150,13 +156,13 @@ class DataTransformations:
 
             raw_count_query = f"""
                 SELECT COUNT(*) as count
-                FROM `{self.config.GCP_PROJECT_ID}.{self.config.GCP_DATASET_NAME}.claim`
+                FROM `{self.config.GCP_PROJECT_ID}.{self.config.GCP_RAW_DATASET}.claim`
             """
-            raw_count = self.bq_client.query(raw_count_query).iloc[0]['count']
+            raw_count = self.raw_bq_client.query(raw_count_query).iloc[0]['count']
 
             fact_count_query = f"""
                 SELECT COUNT(*) as count
-                FROM `{self.config.GCP_PROJECT_ID}.{self.config.GCP_DATASET_NAME}.fact_orders`
+                FROM `{self.config.GCP_PROJECT_ID}.{self.config.GCP_ANALYTICS_DATASET}.fact_orders`
             """
             fact_count = self.bq_client.query(fact_count_query).iloc[0]['count']
 
@@ -175,13 +181,13 @@ class DataTransformations:
 
             raw_revenue_query = f"""
                 SELECT SUM(CAST(AMNT_DUE AS FLOAT64)) as total
-                FROM `{self.config.GCP_PROJECT_ID}.{self.config.GCP_DATASET_NAME}.claim`
+                FROM `{self.config.GCP_PROJECT_ID}.{self.config.GCP_RAW_DATASET}.claim`
             """
-            raw_revenue = self.bq_client.query(raw_revenue_query).iloc[0]['total']
+            raw_revenue = self.raw_bq_client.query(raw_revenue_query).iloc[0]['total']
 
             fact_revenue_query = f"""
                 SELECT SUM(amount_due) as total
-                FROM `{self.config.GCP_PROJECT_ID}.{self.config.GCP_DATASET_NAME}.fact_orders`
+                FROM `{self.config.GCP_PROJECT_ID}.{self.config.GCP_ANALYTICS_DATASET}.fact_orders`
             """
             fact_revenue = self.bq_client.query(fact_revenue_query).iloc[0]['total']
 
@@ -204,7 +210,7 @@ class DataTransformations:
                 SELECT
                     SUM(CASE WHEN customer_key IS NULL THEN 1 ELSE 0 END) as null_customers,
                     SUM(CASE WHEN date_in_key IS NULL THEN 1 ELSE 0 END) as null_dates
-                FROM `{self.config.GCP_PROJECT_ID}.{self.config.GCP_DATASET_NAME}.fact_orders`
+                FROM `{self.config.GCP_PROJECT_ID}.{self.config.GCP_ANALYTICS_DATASET}.fact_orders`
             """
             null_counts = self.bq_client.query(null_keys_query).iloc[0]
 
@@ -223,7 +229,7 @@ class DataTransformations:
 
             items_query = f"""
                 SELECT COUNT(*) as count
-                FROM `{self.config.GCP_PROJECT_ID}.{self.config.GCP_DATASET_NAME}.fact_order_items`
+                FROM `{self.config.GCP_PROJECT_ID}.{self.config.GCP_ANALYTICS_DATASET}.fact_order_items`
             """
             items_count = self.bq_client.query(items_query).iloc[0]['count']
 

@@ -62,9 +62,7 @@ backups/
 *.duckdb
 
 # Generated documentation
-DIMENSIONAL_MODEL_SUMMARY.md
-MIGRATION_SUMMARY.md
-TERRAFORM_MIGRATION_GUIDE.md
+ai-docs/
 
 # GCP specific
 *.json  # Service account keys

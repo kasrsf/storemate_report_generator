@@ -24,10 +24,20 @@ class Config:
 
     # GCP Configuration
     GCP_PROJECT_ID: str = os.getenv("GCP_PROJECT_ID", "")
-    GCP_DATASET_NAME: str = os.getenv("GCP_DATASET_NAME", "storemate_data")
+    GCP_RAW_DATASET: str = os.getenv("GCP_RAW_DATASET", "storemate_raw")
+    GCP_ANALYTICS_DATASET: str = os.getenv("GCP_ANALYTICS_DATASET", "storemate_analytics")
     GCP_LOCATION: str = os.getenv("GCP_LOCATION", "US")  # BigQuery location
     GCP_STORAGE_BUCKET: str = os.getenv("GCP_STORAGE_BUCKET", "")
     GCP_CREDENTIALS_PATH: str = os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "")
+
+    # Backward compatibility: if old GCP_DATASET_NAME is set, use it for both
+    def __post_init__(self):
+        """Handle backward compatibility for dataset configuration."""
+        legacy_dataset = os.getenv("GCP_DATASET_NAME")
+        if legacy_dataset and not os.getenv("GCP_RAW_DATASET"):
+            object.__setattr__(self, "GCP_RAW_DATASET", legacy_dataset)
+        if legacy_dataset and not os.getenv("GCP_ANALYTICS_DATASET"):
+            object.__setattr__(self, "GCP_ANALYTICS_DATASET", legacy_dataset)
 
     # BigQuery table names (will be created from DBF files)
     BQ_CLAIM_TABLE: str = "claim"

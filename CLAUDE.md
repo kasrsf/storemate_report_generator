@@ -119,10 +119,32 @@ cd cloud_function
 
 **Cloud Mode (New):**
 1. DBF files → CSV conversion (same as local)
-2. `ETLPipeline.run_local_to_bigquery()` uploads CSVs to BigQuery raw tables
-3. `DataTransformations` builds dimensional star schema in BigQuery
-4. Looker Studio dashboards query dimensional model
+2. `ETLPipeline.run_local_to_bigquery()` uploads CSVs to BigQuery **raw dataset** (`storemate_raw`)
+3. `DataTransformations` builds dimensional star schema in **analytics dataset** (`storemate_analytics`)
+4. Looker Studio dashboards query dimensional model from analytics dataset
 5. Optional: Cloud Function automates this pipeline on schedule
+
+### BigQuery Dataset Organization
+
+Following best practices, data is separated into two datasets:
+
+**Raw Dataset (`storemate_raw`):**
+- Direct 1:1 copy of DBF files converted to CSV
+- Tables: `claim`, `invoice`, `custlist`, `emplist`, `pricelist`, etc.
+- Purpose: Staging layer for raw data ingestion
+- Never queried by end users
+
+**Analytics Dataset (`storemate_analytics`):**
+- Dimensional model (star schema) optimized for analytics
+- Tables: `dim_*`, `fact_*`, `agg_*`
+- Purpose: Consumption layer for reporting and dashboards
+- Queried by Looker Studio and analysts
+
+This separation provides:
+- Clear data lineage (raw → transformed)
+- Independent access controls
+- Easier to manage lifecycle policies
+- Better query performance (no mixing raw and transformed tables)
 
 ### Core Components
 
@@ -132,16 +154,16 @@ cd cloud_function
 - `dbf_processor.py` - Converts DBF files to CSV using dbfread library
 - `database.py` - DuckDB wrapper for local analytics
 - `reporting.py` - Generates Excel reports from YAML query definitions
-- `etl_pipeline.py` - Orchestrates full ETL: DBF → CSV → BigQuery → Transformations
-- `bigquery_client.py` - BigQuery operations (dataset creation, CSV loading, queries)
+- `etl_pipeline.py` - Orchestrates full ETL: DBF → CSV → BigQuery raw → Transformations → Analytics
+- `bigquery_client.py` - BigQuery operations with dataset type support ('raw' or 'analytics')
 - `gcs_client.py` - Google Cloud Storage operations (upload, download, list)
-- `transformations.py` - Dimensional model transformations (star schema)
+- `transformations.py` - Dimensional model transformations (reads from raw, writes to analytics)
 
 **Data Flow:**
 1. DBF files (legacy POS format) → `DBFProcessor`
-2. CSV files (normalized) → `Database` (local) OR `BigQueryClient` (cloud)
-3. Raw tables → `DataTransformations` (creates dimensional model)
-4. Dimensional model → `ReportGenerator` (local) OR Looker Studio (cloud)
+2. CSV files (normalized) → `Database` (local) OR `BigQueryClient(dataset_type='raw')` (cloud)
+3. Raw tables (storemate_raw dataset) → `DataTransformations`
+4. Dimensional model (storemate_analytics dataset) → Looker Studio (cloud) OR local queries
 
 ### Dimensional Model (Cloud Only)
 
@@ -180,13 +202,16 @@ SQL transformations are stored as separate SQL files in `transformations/` direc
 Required `.env` file (copy from `.env.example`):
 ```
 GCP_PROJECT_ID=your-project-id
-GCP_DATASET_NAME=storemate_data
+GCP_RAW_DATASET=storemate_raw           # Raw data (staging layer)
+GCP_ANALYTICS_DATASET=storemate_analytics  # Dimensional model (consumption layer)
 GCP_LOCATION=US
 GCP_STORAGE_BUCKET=your-bucket-name
 GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account-key.json
 ```
 
 Local-only usage doesn't require GCP variables.
+
+**Backward Compatibility:** If `GCP_DATASET_NAME` is set (legacy), it will be used for both raw and analytics datasets.
 
 ## Key Design Patterns
 
@@ -195,11 +220,14 @@ Local-only usage doesn't require GCP variables.
 - Loads from environment variables with python-dotenv
 - Provides sensible defaults for local-only usage
 - All paths are `pathlib.Path` objects
+- Backward compatible with legacy `GCP_DATASET_NAME` environment variable
 
 ### Client Initialization
 - GCP clients (`BigQueryClient`, `GCSClient`) gracefully handle missing credentials
+- `BigQueryClient` takes optional `dataset_type` parameter ('raw' or 'analytics')
 - ETL pipeline checks for client availability before cloud operations
 - Local operations work without any GCP configuration
+- Transformations use two clients: one for raw (reading), one for analytics (writing)
 
 ### Error Handling
 - All ETL operations return results dictionaries with `errors` list
@@ -254,6 +282,9 @@ Both execute the same ETL logic: download from GCS → process DBF → load to B
 - DBF files must be placed in `data/raw/` before processing
 - CSV files in `data/processed/` match DBF filenames (claim.csv, invoice.csv, etc.)
 - DuckDB database is created fresh each run (no persistence between runs)
-- BigQuery tables are truncated and reloaded (full refresh, not incremental)
+- BigQuery raw tables are truncated and reloaded (full refresh, not incremental)
+- BigQuery analytics tables are recreated from raw data each transformation run
+- Two separate BigQuery datasets: `storemate_raw` (staging) and `storemate_analytics` (consumption)
 - Cloud Function runs in `/tmp/` directory with limited disk space
 - Terraform modules are in `terraform/modules/` (iam, bigquery, storage, cloud_function, scheduler)
+- SQL transformation files use placeholders: `{project_id}`, `{raw_dataset}`, `{analytics_dataset}`
