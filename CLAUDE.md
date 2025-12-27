@@ -6,9 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 StoreMate Report Generator is a dual-mode data analytics solution for dry cleaning businesses:
 - **Local Mode**: Converts legacy POS DBF files → CSV → DuckDB → Excel reports
-- **Cloud Mode**: Automated ETL pipeline from DBF files → BigQuery dimensional model → Looker Studio dashboards
+- **Cloud Mode**: Manual ETL pipeline from DBF files → BigQuery dimensional model → Looker Studio dashboards
 
-The project supports migration from manual monthly Excel reports to real-time cloud dashboards.
+The project supports migration from manual monthly Excel reports to cloud-based dashboards with dimensional modeling.
 
 ## Development Commands
 
@@ -94,17 +94,11 @@ terraform init
 # Plan infrastructure changes
 terraform plan -var="project_id=your-project-id"
 
-# Apply infrastructure (creates BigQuery, GCS, Cloud Function, Scheduler)
+# Apply infrastructure (creates BigQuery datasets, GCS bucket, IAM service accounts)
 terraform apply -var="project_id=your-project-id"
 
 # Destroy infrastructure
 terraform destroy -var="project_id=your-project-id"
-```
-
-### Cloud Function Deployment
-```bash
-cd cloud_function
-./deploy.sh
 ```
 
 ## Architecture
@@ -122,7 +116,7 @@ cd cloud_function
 2. `ETLPipeline.run_local_to_bigquery()` uploads CSVs to BigQuery **raw dataset** (`storemate_raw`)
 3. `DataTransformations` builds dimensional star schema in **analytics dataset** (`storemate_analytics`)
 4. Looker Studio dashboards query dimensional model from analytics dataset
-5. Optional: Cloud Function automates this pipeline on schedule
+5. Manual execution via CLI: `uv run storemate-cli sync-to-bigquery`
 
 ### BigQuery Dataset Organization
 
@@ -247,14 +241,6 @@ Local-only usage doesn't require GCP variables.
 - Tests use pytest with coverage reporting
 - Mock GCP clients for unit tests (no actual GCP calls)
 
-## Cloud Function
-
-The `cloud_function/main.py` provides two entry points:
-1. `sync_data_http()` - HTTP trigger for Cloud Scheduler
-2. `sync_data_storage_trigger()` - Storage trigger when DBF files uploaded
-
-Both execute the same ETL logic: download from GCS → process DBF → load to BigQuery.
-
 ## Common Development Workflows
 
 ### Adding a New Local Report
@@ -272,10 +258,11 @@ Both execute the same ETL logic: download from GCS → process DBF → load to B
 2. Update `DataTransformations.run_all_transformations()` to include new file
 3. Follow naming convention: dimensions (dim_*), facts (fact_*), aggregates (agg_*)
 
-### Modifying Cloud Function
-1. Edit `cloud_function/main.py`
-2. Test locally: `python main.py test`
-3. Deploy: `cd cloud_function && ./deploy.sh`
+### Manual BigQuery Sync Workflow
+1. Place new DBF files in `data/raw/` directory
+2. Run sync command: `uv run storemate-cli sync-to-bigquery`
+3. Pipeline processes DBF → CSV → BigQuery raw → Transformations → Analytics
+4. Looker Studio dashboards automatically reflect updated data
 
 ## Important Notes
 
@@ -285,6 +272,6 @@ Both execute the same ETL logic: download from GCS → process DBF → load to B
 - BigQuery raw tables are truncated and reloaded (full refresh, not incremental)
 - BigQuery analytics tables are recreated from raw data each transformation run
 - Two separate BigQuery datasets: `storemate_raw` (staging) and `storemate_analytics` (consumption)
-- Cloud Function runs in `/tmp/` directory with limited disk space
-- Terraform modules are in `terraform/modules/` (iam, bigquery, storage, cloud_function, scheduler)
+- Data syncs are manual - run `sync-to-bigquery` command regularly to keep BigQuery updated
+- Terraform modules are in `terraform/modules/` (iam, bigquery, storage)
 - SQL transformation files use placeholders: `{project_id}`, `{raw_dataset}`, `{analytics_dataset}`

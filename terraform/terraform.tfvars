@@ -11,10 +11,6 @@ storage_bucket_name = "zipper-storemate-data"
 # bigquery_location    = "US"
 # storage_location     = "US"
 # service_account_id   = "storemate-etl"
-# function_name        = "storemate-etl"
-# scheduler_job_name   = "storemate-daily-sync"
-# scheduler_schedule   = "0 2 * * *"  # Daily at 2 AM
-# scheduler_timezone   = "America/Los_Angeles"
 
 # Labels for resource organization
 # labels = {

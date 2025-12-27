@@ -9,6 +9,7 @@ from google.cloud import bigquery
 from google.cloud.exceptions import NotFound
 
 from .config import Config
+from .dbf_processor import DBFProcessor
 
 logger = logging.getLogger(__name__)
 
@@ -169,6 +170,7 @@ class BigQueryClient:
         """Load all CSV files from a directory to BigQuery tables.
 
         Table names are derived from CSV filenames (without .csv extension).
+        Only loads files that are in the DBFProcessor.ALLOWED_FILES whitelist.
 
         Args:
             directory: Directory containing CSV files
@@ -178,13 +180,31 @@ class BigQueryClient:
             Dictionary mapping table names to their load jobs.
         """
         jobs = {}
-        csv_files = list(directory.glob("*.csv"))
+        all_csv_files = list(directory.glob("*.csv"))
 
-        if not csv_files:
+        if not all_csv_files:
             logger.warning(f"No CSV files found in {directory}")
             return jobs
 
-        logger.info(f"Found {len(csv_files)} CSV files to load")
+        # Filter to only load whitelisted files
+        csv_files = [
+            f for f in all_csv_files
+            if f.stem.lower() in DBFProcessor.ALLOWED_FILES
+        ]
+
+        skipped = len(all_csv_files) - len(csv_files)
+        if skipped > 0:
+            logger.info(f"Skipping {skipped} CSV files not in whitelist")
+            logger.debug(f"Allowed files: {DBFProcessor.ALLOWED_FILES}")
+
+        if not csv_files:
+            logger.warning(
+                f"No whitelisted CSV files found in {directory}. "
+                f"Looking for: {DBFProcessor.ALLOWED_FILES}"
+            )
+            return jobs
+
+        logger.info(f"Found {len(csv_files)} CSV files to load (filtered from {len(all_csv_files)} total)")
 
         for csv_path in csv_files:
             # Use filename without extension as table name

@@ -13,6 +13,17 @@ logger = logging.getLogger(__name__)
 class DBFProcessor:
     """Processor for converting DBF files to CSV format."""
 
+    # Whitelist of DBF files to process (files used in dimensional model and queries)
+    # Only these files will be converted to CSV and loaded to BigQuery
+    ALLOWED_FILES = {
+        'claim',    # Used in transformations and queries (1, 3, 4, 5)
+        'invoice',  # Used in bigquery queries (2, 3)
+        # Add more files here as needed when you expand the data model:
+        # 'custlist',
+        # 'emplist',
+        # 'pricelist',
+    }
+
     def __init__(self, config: Optional[Config] = None):
         """Initialize DBF processor.
 
@@ -63,13 +74,31 @@ class DBFProcessor:
         }
 
         # Find all DBF files
-        dbf_files = list(input_dir.glob("*.dbf")) + list(input_dir.glob("*.DBF"))
+        all_dbf_files = list(input_dir.glob("*.dbf")) + list(input_dir.glob("*.DBF"))
 
-        if not dbf_files:
+        if not all_dbf_files:
             logger.warning(f"No DBF files found in {input_dir}")
             return results
 
-        logger.info(f"Found {len(dbf_files)} DBF files to process")
+        # Filter to only process whitelisted files
+        dbf_files = [
+            f for f in all_dbf_files
+            if f.stem.lower() in self.ALLOWED_FILES
+        ]
+
+        skipped = len(all_dbf_files) - len(dbf_files)
+        if skipped > 0:
+            logger.info(f"Skipping {skipped} files not in whitelist")
+            logger.debug(f"Allowed files: {self.ALLOWED_FILES}")
+
+        if not dbf_files:
+            logger.warning(
+                f"No whitelisted DBF files found in {input_dir}. "
+                f"Looking for: {self.ALLOWED_FILES}"
+            )
+            return results
+
+        logger.info(f"Found {len(dbf_files)} DBF files to process (filtered from {len(all_dbf_files)} total)")
 
         for dbf_file in dbf_files:
             output_file = output_dir / f"{dbf_file.stem}.csv"

@@ -12,9 +12,9 @@ A comprehensive data analytics solution for dry cleaning businesses, transformin
 * Command-line interface for easy operation
 
 ### Cloud Reporting (Google Looker Studio)
-* **Real-time dashboards** with Google Looker Studio
-* **Automated ETL pipeline** to BigQuery
-* **Scheduled data sync** with Cloud Scheduler
+* **Interactive dashboards** with Google Looker Studio
+* **Manual ETL pipeline** to BigQuery
+* **Dimensional data model** with star schema
 * **Scalable data warehouse** with BigQuery
 * **Secure cloud storage** with Google Cloud Storage
 
@@ -27,10 +27,10 @@ DBF Files → CSV → DuckDB → Excel Reports
 
 ### Option 2: Cloud Workflow (New)
 ```
-DBF Files → Cloud Storage → Cloud Function → BigQuery → Looker Studio
-                                ↑
-                          Cloud Scheduler
-                          (automated sync)
+DBF Files → CSV → BigQuery (Raw) → Transformations → BigQuery (Analytics) → Looker Studio
+                       ↑                                      ↑
+                   Manual Sync                         Dimensional Model
+            (via CLI command)                       (Star Schema)
 ```
 
 ## 📋 Prerequisites
@@ -84,13 +84,12 @@ make setup
 
 3. **Create dashboards**:
    - Follow [Looker Studio Guide](docs/LOOKER_STUDIO_GUIDE.md)
-   - Connect to BigQuery
-   - Build visualizations
+   - Connect to BigQuery analytics dataset
+   - Build visualizations using dimensional model
 
-4. **Automate (optional)**:
-   - Deploy Cloud Function for automated sync
-   - Set up Cloud Scheduler for periodic updates
-   - See [GCP Setup Guide](docs/GCP_SETUP_GUIDE.md#cloud-scheduler-setup)
+4. **Regular updates**:
+   - Run `sync-to-bigquery` command regularly (weekly/monthly)
+   - Dashboards automatically reflect updated data
 
 ## 📂 Directory Structure
 
@@ -102,7 +101,7 @@ storemate_report_generator/
 │   ├── reports/          # Generated Excel report files
 │   └── queries/          # YAML files with report queries (for local)
 ├── bigquery_queries/     # SQL queries for BigQuery/Looker Studio
-├── cloud_function/       # Cloud Function for automated ETL
+├── transformations/      # SQL transformations for dimensional model
 ├── docs/                 # Documentation
 │   ├── GCP_SETUP_GUIDE.md       # Complete GCP setup instructions
 │   └── LOOKER_STUDIO_GUIDE.md   # Dashboard building guide
@@ -139,18 +138,20 @@ uv run storemate-cli test-gcp
 # Initialize GCP resources (one-time setup)
 uv run storemate-cli init-gcp
 
-# Sync data to BigQuery
+# Sync data to BigQuery (includes transformations)
 uv run storemate-cli sync-to-bigquery
 
 # Skip DBF processing if CSVs already exist
 uv run storemate-cli sync-to-bigquery --skip-dbf
-```
 
-### Cloud Function Deployment
+# Skip transformations (only load raw data)
+uv run storemate-cli sync-to-bigquery --skip-transform
 
-```bash
-cd cloud_function
-./deploy.sh
+# Run only transformations (on existing raw data)
+uv run storemate-cli run-transformations
+
+# Show dimensional model table statistics
+uv run storemate-cli show-table-stats
 ```
 
 ## 📊 Available Reports
@@ -182,7 +183,7 @@ See [bigquery_queries/README.md](bigquery_queries/README.md) for usage in Looker
 |-------|-------------|
 | [GCP Setup Guide](docs/GCP_SETUP_GUIDE.md) | Complete walkthrough for setting up Google Cloud Platform |
 | [Looker Studio Guide](docs/LOOKER_STUDIO_GUIDE.md) | Dashboard templates and best practices |
-| [Cloud Function README](cloud_function/README.md) | Deployment and monitoring of automated ETL |
+| [Dimensional Model](docs/DIMENSIONAL_MODEL.md) | Star schema design and transformation logic |
 | [BigQuery Queries README](bigquery_queries/README.md) | SQL queries for Looker Studio |
 
 ## 🔄 Migration Path
@@ -192,22 +193,21 @@ See [bigquery_queries/README.md](bigquery_queries/README.md) for usage in Looker
 - Download Excel file
 - Email to stakeholders
 
-### Migrated State: Real-time Cloud Dashboards
-- Automatic daily (or hourly) data sync
+### Migrated State: Cloud Dashboards with Dimensional Model
+- Manual data sync (weekly or monthly via CLI)
 - Live dashboards accessible via URL
-- No manual intervention required
-- Always up-to-date insights
+- Rich dimensional model for advanced analytics
+- Always up-to-date insights after sync
 
 **Migration Steps**:
 1. Follow [GCP Setup Guide](docs/GCP_SETUP_GUIDE.md) (1-2 hours)
-2. Run initial data sync
-3. Create Looker Studio dashboards
-4. Deploy Cloud Function for automation
-5. Set up Cloud Scheduler
-6. Share dashboard links with team
+2. Run initial data sync: `uv run storemate-cli sync-to-bigquery`
+3. Create Looker Studio dashboards using dimensional model
+4. Share dashboard links with team
+5. Schedule regular manual syncs (weekly/monthly)
 
-**Estimated Time**: 2-3 hours total
-**Monthly Cost**: $10-30 (mostly covered by free tier)
+**Estimated Time**: 2-3 hours for initial setup
+**Monthly Cost**: $1-10 (mostly covered by free tier)
 
 ## 🛠️ Development
 
@@ -266,11 +266,9 @@ Then use in Looker Studio as a custom query.
 
 | Service | Free Tier | Typical Usage | Est. Cost |
 |---------|-----------|---------------|-----------|
-| BigQuery | 1 TB queries, 10 GB storage | ~5 GB storage, 100 GB queries | $0-5 |
+| BigQuery | 1 TB queries, 10 GB storage | ~5 GB storage, 50 GB queries | $0-5 |
 | Cloud Storage | 5 GB | ~2 GB | $0-1 |
-| Cloud Functions | 2M invocations | ~700 invocations | $0-1 |
-| Cloud Scheduler | 3 jobs | 1 job | $0.10 |
-| **Total** | - | - | **$1-10/month** |
+| **Total** | - | - | **$0-5/month** |
 
 *Costs are estimates for a single-location dry cleaning business. Actual costs may vary.*
 
@@ -295,12 +293,12 @@ MIT License
 ## 🎉 What's New
 
 **Version 0.2.0** - Cloud Integration
-- ✅ Google BigQuery integration
-- ✅ Cloud Function for automated ETL
-- ✅ Cloud Scheduler support
-- ✅ Looker Studio compatible SQL queries
+- ✅ Google BigQuery integration with dual datasets
+- ✅ Dimensional model (star schema) for analytics
+- ✅ SQL transformations for fact and dimension tables
+- ✅ Looker Studio compatible queries
+- ✅ Manual ETL pipeline via CLI
 - ✅ Comprehensive setup guides
-- ✅ Real-time dashboard templates
 
 **Version 0.1.0** - Initial Release
 - DBF to CSV conversion

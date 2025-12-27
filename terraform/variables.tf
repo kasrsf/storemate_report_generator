@@ -56,56 +56,6 @@ variable "service_account_id" {
   default     = "storemate-etl"
 }
 
-# Cloud Function Configuration
-variable "function_name" {
-  description = "Cloud Function name"
-  type        = string
-  default     = "storemate-etl"
-}
-
-variable "function_runtime" {
-  description = "Cloud Function runtime"
-  type        = string
-  default     = "python311"
-}
-
-variable "function_entry_point" {
-  description = "Cloud Function entry point"
-  type        = string
-  default     = "sync_data_http"
-}
-
-variable "function_source_dir" {
-  description = "Path to Cloud Function source code"
-  type        = string
-  default     = "../cloud_function"
-}
-
-variable "function_environment_vars" {
-  description = "Environment variables for Cloud Function"
-  type        = map(string)
-  default     = {}
-}
-
-# Cloud Scheduler Configuration
-variable "scheduler_job_name" {
-  description = "Cloud Scheduler job name"
-  type        = string
-  default     = "storemate-daily-sync"
-}
-
-variable "scheduler_schedule" {
-  description = "Cloud Scheduler cron schedule"
-  type        = string
-  default     = "0 2 * * *" # Daily at 2 AM
-}
-
-variable "scheduler_timezone" {
-  description = "Timezone for Cloud Scheduler"
-  type        = string
-  default     = "America/Los_Angeles"
-}
-
 # Budget & Alerts
 variable "budget_amount" {
   description = "Monthly budget amount in USD"

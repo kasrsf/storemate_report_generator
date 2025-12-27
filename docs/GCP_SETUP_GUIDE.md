@@ -1,6 +1,6 @@
 # Google Cloud Platform Setup Guide
 
-Complete guide to migrating your StoreMate reporting from local Excel to Google Cloud with real-time Looker Studio dashboards.
+Complete guide to migrating your StoreMate reporting from local Excel to Google Cloud with Looker Studio dashboards.
 
 ## Table of Contents
 
@@ -11,11 +11,10 @@ Complete guide to migrating your StoreMate reporting from local Excel to Google 
 5. [Cloud Storage Setup](#cloud-storage-setup)
 6. [Local Environment Configuration](#local-environment-configuration)
 7. [Initial Data Sync](#initial-data-sync)
-8. [Cloud Function Deployment](#cloud-function-deployment)
-9. [Cloud Scheduler Setup](#cloud-scheduler-setup)
-10. [Looker Studio Dashboard](#looker-studio-dashboard)
-11. [Testing & Verification](#testing--verification)
-12. [Troubleshooting](#troubleshooting)
+8. [Looker Studio Dashboard](#looker-studio-dashboard)
+9. [Regular Data Updates](#regular-data-updates)
+10. [Testing & Verification](#testing--verification)
+11. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -30,11 +29,9 @@ Complete guide to migrating your StoreMate reporting from local Excel to Google 
 
 **Estimated Time**: 1-2 hours for initial setup
 
-**Estimated Monthly Cost**: $10-30/month depending on data volume
-- BigQuery: ~$5-10/month (first 1 TB queries free)
-- Cloud Storage: ~$1-5/month (first 5 GB free)
-- Cloud Functions: ~$0-5/month (2M invocations free)
-- Cloud Scheduler: ~$0.10/month (3 jobs free)
+**Estimated Monthly Cost**: $0-10/month depending on data volume
+- BigQuery: ~$0-5/month (first 1 TB queries free)
+- Cloud Storage: ~$0-5/month (first 5 GB free)
 
 ---
 
@@ -74,9 +71,6 @@ gcloud config set project $PROJECT_ID
 # Enable APIs
 gcloud services enable bigquery.googleapis.com
 gcloud services enable storage.googleapis.com
-gcloud services enable cloudfunctions.googleapis.com
-gcloud services enable cloudscheduler.googleapis.com
-gcloud services enable cloudbuild.googleapis.com
 ```
 
 ---
@@ -336,109 +330,6 @@ bq query --nouse_legacy_sql \
 
 ---
 
-## Cloud Function Deployment
-
-### Step 1: Prepare for Deployment
-
-```bash
-cd cloud_function
-
-# Ensure environment variables are set
-source ../.env
-```
-
-### Step 2: Deploy Function
-
-```bash
-# Run deployment script
-./deploy.sh
-
-# When prompted, choose:
-#   1) HTTP trigger (for Cloud Scheduler)
-```
-
-This will:
-- Copy source code
-- Deploy to Cloud Functions
-- Set up environment variables
-- Display function URL
-
-### Step 3: Test Cloud Function
-
-```bash
-# Get function URL
-FUNCTION_URL=$(gcloud functions describe storemate-etl \
-    --region=us-central1 \
-    --gen2 \
-    --format='value(serviceConfig.uri)')
-
-# Test function
-curl -X POST $FUNCTION_URL
-
-# Check logs
-gcloud functions logs read storemate-etl --region=us-central1 --gen2 --limit=50
-```
-
----
-
-## Cloud Scheduler Setup
-
-### Step 1: Create Scheduler Job
-
-```bash
-# Get function URL
-FUNCTION_URL=$(gcloud functions describe storemate-etl \
-    --region=us-central1 \
-    --gen2 \
-    --format='value(serviceConfig.uri)')
-
-# Create daily job at 2 AM
-gcloud scheduler jobs create http storemate-daily-sync \
-    --schedule="0 2 * * *" \
-    --uri=$FUNCTION_URL \
-    --http-method=POST \
-    --location=us-central1 \
-    --description="Daily sync of StoreMate data to BigQuery"
-```
-
-### Step 2: Schedule Options
-
-Choose your sync frequency:
-
-```bash
-# Hourly (every hour at minute 0)
---schedule="0 * * * *"
-
-# Every 6 hours
---schedule="0 */6 * * *"
-
-# Twice daily (2 AM and 2 PM)
---schedule="0 2,14 * * *"
-
-# Daily at 2 AM (recommended)
---schedule="0 2 * * *"
-
-# Weekdays only at 6 AM
---schedule="0 6 * * 1-5"
-```
-
-### Step 3: Test Scheduler
-
-```bash
-# Manually trigger the job
-gcloud scheduler jobs run storemate-daily-sync --location=us-central1
-
-# Check job status
-gcloud scheduler jobs describe storemate-daily-sync --location=us-central1
-
-# View execution history
-gcloud scheduler jobs describe storemate-daily-sync \
-    --location=us-central1 \
-    --format="table(status, scheduleTime, lastAttemptTime)"
-```
-
----
-
 ## Looker Studio Dashboard
 
 ### Step 1: Access Looker Studio
@@ -507,20 +398,47 @@ Example dashboard layout:
 
 ---
 
-## Testing & Verification
+## Regular Data Updates
 
-### End-to-End Test
+Since this setup uses manual data syncs, you'll need to run the sync command regularly to keep your BigQuery data and dashboards up to date.
 
-1. **Upload new data**:
+### Recommended Sync Schedule
+
+Choose a frequency that matches your business needs:
+
+**Weekly Sync** (recommended for most businesses):
+```bash
+# Run every Monday morning
+uv run storemate-cli sync-to-bigquery
+```
+
+**Monthly Sync**:
+```bash
+# Run at the end of each month
+uv run storemate-cli sync-to-bigquery
+```
+
+**Ad-hoc Sync**:
+```bash
+# Run whenever you need updated data
+uv run storemate-cli sync-to-bigquery
+```
+
+### Sync Workflow
+
+1. **Ensure DBF files are current**:
+   - Copy latest DBF files to `data/raw/` directory
+
+2. **Run sync command**:
    ```bash
-   # Copy fresh DBF files
-   gsutil cp data/raw/*.dbf gs://$BUCKET_NAME/data/
+   uv run storemate-cli sync-to-bigquery
    ```
 
-2. **Trigger manual sync**:
-   ```bash
-   gcloud scheduler jobs run storemate-daily-sync --location=us-central1
-   ```
+   This will:
+   - Convert DBF files to CSV
+   - Upload to BigQuery raw dataset
+   - Run dimensional transformations
+   - Update analytics dataset
 
 3. **Verify in BigQuery**:
    ```bash
@@ -530,15 +448,68 @@ Example dashboard layout:
 
 4. **Check Looker Studio**:
    - Open your dashboard
-   - Click refresh icon
+   - Data should automatically reflect the update
+   - No manual refresh needed
+
+### Skip Options
+
+If you already have processed CSV files:
+```bash
+# Skip DBF to CSV conversion
+uv run storemate-cli sync-to-bigquery --skip-dbf
+```
+
+If you only want to update raw data without transformations:
+```bash
+# Skip dimensional transformations
+uv run storemate-cli sync-to-bigquery --skip-transform
+```
+
+If you only want to run transformations on existing raw data:
+```bash
+# Run transformations only
+uv run storemate-cli run-transformations
+```
+
+---
+
+## Testing & Verification
+
+### End-to-End Test
+
+1. **Prepare test data**:
+   ```bash
+   # Ensure fresh DBF files in data/raw/
+   ls -lh data/raw/*.dbf
+   ```
+
+2. **Run manual sync**:
+   ```bash
+   uv run storemate-cli sync-to-bigquery
+   ```
+
+3. **Verify in BigQuery**:
+   ```bash
+   # Check latest data
+   bq query --nouse_legacy_sql \
+       "SELECT MAX(DATE_IN) as latest_date FROM \`$PROJECT_ID.$DATASET_NAME.claim\`"
+
+   # Check dimensional model
+   bq query --nouse_legacy_sql \
+       "SELECT COUNT(*) as row_count FROM \`$PROJECT_ID.$DATASET_NAME.fact_orders\`"
+   ```
+
+4. **Check Looker Studio**:
+   - Open your dashboard
    - Verify new data appears
+   - Test date filters and drill-downs
 
 ### Monitoring Checklist
 
-- [ ] Cloud Function executes without errors
-- [ ] BigQuery tables update with new data
+- [ ] Sync command completes without errors
+- [ ] BigQuery raw tables update with new data
+- [ ] Dimensional model tables are populated
 - [ ] Looker Studio dashboard shows current data
-- [ ] Cloud Scheduler runs on schedule
 - [ ] Costs are within budget
 
 ---
@@ -554,14 +525,12 @@ gcloud projects get-iam-policy $PROJECT_ID \
     --filter="bindings.members:serviceAccount:storemate-etl@*"
 ```
 
-### Cloud Function timeout
+### Sync command takes too long
 
-**Solution**: Increase timeout or optimize data processing
-```bash
-gcloud functions deploy storemate-etl \
-    --timeout=540s \  # Max 9 minutes
-    --memory=1024MB   # Increase memory
-```
+**Solutions**:
+1. Process smaller batches of DBF files
+2. Use `--skip-dbf` flag if CSVs are already generated
+3. Use `--skip-transform` to only load raw data, run transformations separately later
 
 ### "Table not found" in Looker Studio
 
@@ -574,22 +543,26 @@ gcloud functions deploy storemate-etl \
 
 **Solutions**:
 1. Check [Billing Reports](https://console.cloud.google.com/billing)
-2. Reduce sync frequency (e.g., daily instead of hourly)
-3. Use materialized views for frequently accessed data
+2. Reduce sync frequency (e.g., monthly instead of weekly)
+3. Use partitioned tables for large datasets
 4. Set up spending limits
 
 ### Data not updating
 
 **Check**:
-1. Scheduler logs: `gcloud scheduler jobs describe storemate-daily-sync --location=us-central1`
-2. Function logs: `gcloud functions logs read storemate-etl --region=us-central1 --gen2`
-3. BigQuery audit logs: BigQuery Console → Query History
+1. Verify sync command completed successfully: check terminal output for errors
+2. Check BigQuery Console → Query History for failed queries
+3. Verify latest data in raw tables:
+   ```bash
+   bq query --nouse_legacy_sql \
+       "SELECT MAX(DATE_IN) FROM \`$PROJECT_ID.$DATASET_NAME.claim\`"
+   ```
 
 ---
 
 ## Next Steps
 
-1. **Set up alerts**: Configure email notifications for failed jobs
+1. **Schedule regular syncs**: Set a reminder (weekly/monthly) to run sync command
 2. **Create more dashboards**: Build custom reports for different audiences
 3. **Automate DBF uploads**: Set up automatic file sync from POS system
 4. **Add data validation**: Create data quality checks in BigQuery
@@ -600,9 +573,8 @@ gcloud functions deploy storemate-etl \
 - **GCP Documentation**: https://cloud.google.com/docs
 - **BigQuery**: https://cloud.google.com/bigquery/docs
 - **Looker Studio**: https://support.google.com/looker-studio
-- **Cloud Functions**: https://cloud.google.com/functions/docs
 - **Community**: https://stackoverflow.com/questions/tagged/google-cloud-platform
 
 ---
 
-**Congratulations!** 🎉 You now have a fully automated, real-time reporting pipeline with Google Cloud!
+**Congratulations!** 🎉 You now have a cloud-based reporting pipeline with dimensional modeling and interactive dashboards!

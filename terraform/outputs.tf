@@ -30,26 +30,6 @@ output "service_account_email" {
   value       = module.iam.service_account_email
 }
 
-output "cloud_function_name" {
-  description = "Cloud Function name"
-  value       = module.cloud_function.function_name
-}
-
-output "cloud_function_url" {
-  description = "Cloud Function HTTP trigger URL"
-  value       = module.cloud_function.function_url
-}
-
-output "scheduler_job_name" {
-  description = "Cloud Scheduler job name"
-  value       = module.scheduler.job_name
-}
-
-output "scheduler_schedule" {
-  description = "Cloud Scheduler cron schedule"
-  value       = module.scheduler.schedule
-}
-
 # Environment variables for local CLI
 output "environment_variables" {
   description = "Environment variables to set for local development"
@@ -86,9 +66,8 @@ output "next_steps" {
     5. View your data in BigQuery:
        https://console.cloud.google.com/bigquery?project=${var.project_id}
 
-    6. Cloud Function URL:
-       ${module.cloud_function.function_url}
+    6. Set up Looker Studio dashboards using queries in bigquery_queries/
 
-    7. Scheduler will run automatically at: ${var.scheduler_schedule} (${var.scheduler_timezone})
+    Note: Data syncs are manual. Run 'uv run storemate-cli sync-to-bigquery' regularly to update BigQuery.
   EOT
 }
