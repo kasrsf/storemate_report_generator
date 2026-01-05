@@ -1,16 +1,48 @@
-# Storemate Report Generator
+# StoreMate Report Generator
 
-A pytho-based tool for processing store DBF data files and generating analytical reports using DuckDB.
+A comprehensive data analytics solution for dry cleaning businesses, transforming legacy POS data into modern, real-time dashboards. Supports both local Excel reports and cloud-based Google Looker Studio dashboards.
 
-## Features
+## 🎯 Features
+
+### Local Reporting (Excel)
 * Automatic processing of DBF files to CSV format
 * Report generation using configurable SQL queries
+* Excel output with multiple worksheets
 * Automatic backup of data directory
 * Command-line interface for easy operation
 
-## Prerequisites
-* Python 3.9 or higer
-* UV Package manager (`pip install uv`)
+### Cloud Reporting (Google Looker Studio)
+* **Interactive dashboards** with Google Looker Studio
+* **Manual ETL pipeline** to BigQuery
+* **Dimensional data model** with star schema
+* **Scalable data warehouse** with BigQuery
+* **Secure cloud storage** with Google Cloud Storage
+
+## 🏗️ Architecture
+
+### Option 1: Local Workflow (Current)
+```
+DBF Files → CSV → DuckDB → Excel Reports
+```
+
+### Option 2: Cloud Workflow (New)
+```
+DBF Files → CSV → BigQuery (Raw) → Transformations → BigQuery (Analytics) → Looker Studio
+                       ↑                                      ↑
+                   Manual Sync                         Dimensional Model
+            (via CLI command)                       (Star Schema)
+```
+
+## 📋 Prerequisites
+
+### For Local Use
+* Python 3.9 or higher
+* UV Package manager (or pip)
+
+### For Cloud Use (Optional)
+* Google Cloud Platform account
+* gcloud CLI installed
+* See [GCP Setup Guide](docs/GCP_SETUP_GUIDE.md) for detailed instructions
 
 ## Installation
 1. Clone the repository:
@@ -24,57 +56,160 @@ cd storemate_report_generator
 make setup 
 ```
 
-## Usage
+## 🚀 Quick Start
 
-### Directory Structure
+### Local Excel Reports
 
-* `data/raw`: Place your DBF files here
-* `data/processed/`: Converted CSV files and DuckDB database
-* `data/reports/`: Generated report files
-* `data/queries/`: YAML files containing report queries
+1. **Place DBF files** in `data/raw/` directory
+2. **Process and generate reports**:
+   ```bash
+   make run-all
+   ```
+3. **Find reports** in `data/reports/reports_YYYYMMDD_HHMMSS.xlsx`
 
-### Commands
-1. Process DBF files to CSV:
-```bash
-make process-data 
+### Cloud Looker Studio Dashboards
+
+1. **Set up GCP** (one-time):
+   - Follow [GCP Setup Guide](docs/GCP_SETUP_GUIDE.md)
+   - Set environment variables
+   - Initialize GCP resources:
+     ```bash
+     uv run storemate-cli init-gcp
+     ```
+
+2. **Sync data to BigQuery**:
+   ```bash
+   uv run storemate-cli sync-to-bigquery
+   ```
+
+3. **Create dashboards**:
+   - Follow [Looker Studio Guide](docs/LOOKER_STUDIO_GUIDE.md)
+   - Connect to BigQuery analytics dataset
+   - Build visualizations using dimensional model
+
+4. **Regular updates**:
+   - Run `sync-to-bigquery` command regularly (weekly/monthly)
+   - Dashboards automatically reflect updated data
+
+## 📂 Directory Structure
+
+```
+storemate_report_generator/
+├── data/
+│   ├── raw/              # Place your DBF files here
+│   ├── processed/        # Converted CSV files and DuckDB database
+│   ├── reports/          # Generated Excel report files
+│   └── queries/          # YAML files with report queries (for local)
+├── bigquery_queries/     # SQL queries for BigQuery/Looker Studio
+├── transformations/      # SQL transformations for dimensional model
+├── docs/                 # Documentation
+│   ├── GCP_SETUP_GUIDE.md       # Complete GCP setup instructions
+│   └── LOOKER_STUDIO_GUIDE.md   # Dashboard building guide
+└── src/                  # Application source code
 ```
 
-2. Generate reports:
-```bash
-make generate-reports 
-```
+## 💻 CLI Commands
 
-3. Backup data directory:
+### Local Commands
+
 ```bash
+# Process DBF files to CSV
+make process-data
+# or: uv run storemate-cli process-data
+
+# Generate Excel reports
+make generate-reports MONTH=11 YEAR=2024
+# or: uv run storemate-cli generate-reports --month 11 --year 2024
+
+# Backup data directory
 make backup-data
+# or: uv run storemate-cli backup-data
+
+# Run complete local pipeline
+make run-all
 ```
 
-4. Run complete pipeline (process, generate reports, backup):
+### Cloud Commands
+
 ```bash
-make run-all 
+# Test GCP connection
+uv run storemate-cli test-gcp
+
+# Initialize GCP resources (one-time setup)
+uv run storemate-cli init-gcp
+
+# Sync data to BigQuery (includes transformations)
+uv run storemate-cli sync-to-bigquery
+
+# Skip DBF processing if CSVs already exist
+uv run storemate-cli sync-to-bigquery --skip-dbf
+
+# Skip transformations (only load raw data)
+uv run storemate-cli sync-to-bigquery --skip-transform
+
+# Run only transformations (on existing raw data)
+uv run storemate-cli run-transformations
+
+# Show dimensional model table statistics
+uv run storemate-cli show-table-stats
 ```
 
-### Adding New Reports
+## 📊 Available Reports
 
-Create a new YAML file in `reports/queries/` directory with the following structure:
+### Local Excel Reports (YAML Queries)
 
-```yaml
-name: weekly_customer_sales
-description: "Breakdown of sales by customers and items in the past week"
-query: |
-  SELECT
-    customer_name,
-    item_name,
-    SUM(quantity) AS total_quantity,
-    SUM(amount) AS total_amount
-  FROM sales
-  WHERE data >= DATEADD('week', -1, CURRENT_DATE)
-  GROUP BY customer_name, item_name
-  ORDER BY total_amount DESC
-output_file: weekly_customer_sales.csv
-```
+| Report | Description | Metrics |
+|--------|-------------|---------|
+| **Daily Orders** | Order statistics by date | Count, average, total sales |
+| **Sales Breakdown** | Payment method analysis | Cash, debit, credit totals |
+| **Drops vs Pickups** | Compare dropped vs picked orders | Orders, items, revenue |
+| **Item Analysis** | Item-level breakdown | Quantity, revenue by category |
+| **Customer Analysis** | Customer behavior insights | Lifetime value, visit frequency |
 
-## Development
+### BigQuery/Looker Studio Reports (SQL Queries)
+
+All local reports have been converted to BigQuery SQL format in `bigquery_queries/`:
+- `1_report_orders_daily.sql` - Daily order statistics
+- `2_sales_breakdown_daily.sql` - Payment method breakdown
+- `3_order_drops_pickups.sql` - Drops vs pickups comparison
+- `4_item_drops.sql` - Item-level analysis
+- `5_customer_drops.sql` - Customer behavior analysis
+
+See [bigquery_queries/README.md](bigquery_queries/README.md) for usage in Looker Studio.
+
+## 📖 Documentation
+
+| Guide | Description |
+|-------|-------------|
+| [GCP Setup Guide](docs/GCP_SETUP_GUIDE.md) | Complete walkthrough for setting up Google Cloud Platform |
+| [Looker Studio Guide](docs/LOOKER_STUDIO_GUIDE.md) | Dashboard templates and best practices |
+| [Dimensional Model](docs/DIMENSIONAL_MODEL.md) | Star schema design and transformation logic |
+| [BigQuery Queries README](bigquery_queries/README.md) | SQL queries for Looker Studio |
+
+## 🔄 Migration Path
+
+### Current State: Manual Monthly Excel Reports
+- Run commands manually once a month
+- Download Excel file
+- Email to stakeholders
+
+### Migrated State: Cloud Dashboards with Dimensional Model
+- Manual data sync (weekly or monthly via CLI)
+- Live dashboards accessible via URL
+- Rich dimensional model for advanced analytics
+- Always up-to-date insights after sync
+
+**Migration Steps**:
+1. Follow [GCP Setup Guide](docs/GCP_SETUP_GUIDE.md) (1-2 hours)
+2. Run initial data sync: `uv run storemate-cli sync-to-bigquery`
+3. Create Looker Studio dashboards using dimensional model
+4. Share dashboard links with team
+5. Schedule regular manual syncs (weekly/monthly)
+
+**Estimated Time**: 2-3 hours for initial setup
+**Monthly Cost**: $1-10 (mostly covered by free tier)
+
+## 🛠️ Development
 
 ### Running Tests
 ```bash
@@ -83,9 +218,90 @@ make test
 
 ### Code Quality
 ```bash
-make lint
-make format
+make lint      # Check code style
+make format    # Auto-format code
 ```
 
-## License
+### Adding New Local Reports
+
+Create a YAML file in `data/queries/`:
+
+```yaml
+name: custom_report
+description: "Description of your report"
+query: |
+  SELECT
+    column1,
+    SUM(column2) AS total
+  FROM table_name
+  WHERE date BETWEEN '$FIRST_DAY' AND '$LAST_DAY'
+  GROUP BY column1
+output_file: custom_report.csv
+```
+
+### Adding New BigQuery Reports
+
+Create a SQL file in `bigquery_queries/`:
+
+```sql
+-- Report Description
+-- Parameters: @DS_START_DATE, @DS_END_DATE
+
+SELECT
+    column1,
+    SUM(column2) AS total
+FROM `${project_id}.${dataset_name}.table_name`
+WHERE date BETWEEN @DS_START_DATE AND @DS_END_DATE
+GROUP BY column1
+```
+
+Then use in Looker Studio as a custom query.
+
+## 💰 Cost Estimation
+
+### Local Usage
+- **Free** - All processing done locally
+
+### Cloud Usage (Monthly)
+
+| Service | Free Tier | Typical Usage | Est. Cost |
+|---------|-----------|---------------|-----------|
+| BigQuery | 1 TB queries, 10 GB storage | ~5 GB storage, 50 GB queries | $0-5 |
+| Cloud Storage | 5 GB | ~2 GB | $0-1 |
+| **Total** | - | - | **$0-5/month** |
+
+*Costs are estimates for a single-location dry cleaning business. Actual costs may vary.*
+
+## 🔒 Security
+
+- Service account credentials stored securely
+- BigQuery data encrypted at rest and in transit
+- Access control via Google Cloud IAM
+- No sensitive data in version control (`.env` in `.gitignore`)
+
+## 📞 Support
+
+- **Issues**: Open an issue on GitHub
+- **Documentation**: Check the `docs/` directory
+- **GCP Help**: [Google Cloud Console](https://console.cloud.google.com/)
+- **Looker Studio Help**: [Looker Studio Support](https://support.google.com/looker-studio)
+
+## 📝 License
+
 MIT License
+
+## 🎉 What's New
+
+**Version 0.2.0** - Cloud Integration
+- ✅ Google BigQuery integration with dual datasets
+- ✅ Dimensional model (star schema) for analytics
+- ✅ SQL transformations for fact and dimension tables
+- ✅ Looker Studio compatible queries
+- ✅ Manual ETL pipeline via CLI
+- ✅ Comprehensive setup guides
+
+**Version 0.1.0** - Initial Release
+- DBF to CSV conversion
+- DuckDB local database
+- Excel report generation
+- Command-line interface

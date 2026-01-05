@@ -7,7 +7,7 @@ packages = ["src/storemate_report_generator"]
 
 [project]
 name = "storemate_report_generator"
-version = "0.1.0"
+version = "0.2.0"
 authors = [
     { name = "kasrsf", email = "kasra@kasrsf.com" },
 ]
@@ -21,7 +21,14 @@ dependencies = [
     "click>=8.0.0",
     "pandas>=2.0.0",
     "openpyxl>=3.1.5",
+    "google-cloud-bigquery>=3.11.0",
+    "google-cloud-storage>=2.10.0",
+    "db-dtypes>=1.1.1",
+    "python-dotenv>=1.2.1",
 ]
+
+[project.scripts]
+storemate-cli = "storemate_report_generator.cli:cli"
 
 [project.optional-dependencies]
 dev = [

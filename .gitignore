@@ -61,7 +61,25 @@ backups/
 *.db
 *.duckdb
 
+# Generated documentation
+ai-docs/
+
+# GCP specific
+*.json  # Service account keys
+.gcp/
+cloud_function/storemate_report_generator/  # Copied source code during deployment
+.env.local
+.env.production
+
 # OS specific
 .DS_Store
 Thumbs.db
 *.log
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfvars
+!*.tfvars.example
+terraform.tfplan
+.terraform.lock.hcl
